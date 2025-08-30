@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <toolshelf name="jiko_bridge" label="Jiko Bridge">
+    <memberTool name="asset_import"/>
+  </toolshelf>
+
+  <tool name="asset_import" label="Import Asset" icon="">
+  <script scriptType="python"><![CDATA[
+import hou
+import sys
+import os
+
+plugin_dir = hou.expandString("$JIKO_BRIDGE")
+if plugin_dir not in sys.path:
+    sys.path.append(plugin_dir)
+
+from JikoBridgeHou import JikoBridge
+
+JikoBridge().asset_import()
+  ]]></script>
+  </tool>
+
+</shelfDocument>
