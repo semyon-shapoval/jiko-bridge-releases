@@ -5,7 +5,6 @@ from jb_api import JB_API
 from jb_helper import JB_Helpers
 from jb_material_importer import JBMaterialImporter
 
-
 class JB_AssetImporter:
     def __init__(self):
         self.api = JB_API()
