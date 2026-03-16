@@ -3,7 +3,7 @@ import urllib.parse
 import json
 import os
 import platform
-from typing import Optional, Dict
+from typing import Optional
 
 
 DEFAULT_PORT = 5174

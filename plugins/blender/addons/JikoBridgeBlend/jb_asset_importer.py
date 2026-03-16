@@ -9,13 +9,13 @@ class JB_OT_AssetImport(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        scene = context.scene
         api = JB_API()
 
         asset = api.get_active_asset()
 
-        if asset:
+        if asset and asset.asset_path:
             bpy.ops.import_scene.fbx(filepath=asset.asset_path)
             return {'FINISHED'}
-
-        return {'CANCELLED'}
+        else:
+            print("No active asset found or asset path is missing.")
+            return {'CANCELLED'}

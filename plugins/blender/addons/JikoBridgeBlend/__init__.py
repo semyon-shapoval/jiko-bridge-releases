@@ -1,8 +1,16 @@
+import sys
+import os
+import bpy
+
+root_path = os.path.join(os.path.dirname(__file__))
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 bl_info = {
     "name": "Jiko Bridge",
     "author": "JIKO",
     "version": (1, 0),
-    "blender": (4, 3, 2),
+    "blender": (5, 0, 1),
     "location": "View3D > Sidebar > Jiko Bridge",
     "description": "Jiko Bridge",
     "category": "3D View",
@@ -10,24 +18,23 @@ bl_info = {
     "tracker_url": "https://t.me/withjiko",  
 }
 
-import sys
-import os
+from .jb_commands_dialog import JB_PT_Commands, JB_OT_Reload
+from .jb_asset_importer import JB_OT_AssetImport
 
-root_path = os.path.join(os.path.dirname(__file__))
-if root_path not in sys.path:
-    sys.path.append(root_path)
-
-src_path = os.path.join(root_path, "src")
-if src_path not in sys.path:
-    sys.path.append(src_path)
-
-from . import src
+classes = [
+    JB_PT_Commands,
+    JB_OT_Reload,
+    JB_OT_AssetImport
+]
 
 def register():
-    src.register()
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    src.unregister()
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
+
 
 if __name__ == "__main__":
     register()
