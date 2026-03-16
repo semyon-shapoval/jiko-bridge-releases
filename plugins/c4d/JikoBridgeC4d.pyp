@@ -11,34 +11,24 @@ def load_arnold_module():
     if os.path.exists(arnold_folder) and arnold_folder not in sys.path:
         sys.path.append(arnold_folder)
 
-load_arnold_module()
-
 def load_plugin_modules():
     plugin_dir = os.path.abspath(os.path.dirname(__file__))
-    bridge_dir = os.path.abspath(os.path.join(plugin_dir, "..", "bridge"))
+    if plugin_dir not in sys.path:
+        sys.path.insert(0, plugin_dir)
 
-    for p in (plugin_dir, bridge_dir):
-        if p not in sys.path:
-            sys.path.insert(0, p)
-
-    return [plugin_dir, bridge_dir]
-
-python_modules = load_plugin_modules()
+load_arnold_module()
+load_plugin_modules()
 
 def reload_plugin_modules():
+    plugin_dir = os.path.abspath(os.path.dirname(__file__))
     importlib.invalidate_caches()
     for name, mod in list(sys.modules.items()):
         f = getattr(mod, "__file__", None)
-        if not f:
-            continue
-        f = os.path.abspath(f)
-        for p in python_modules:
-            if str(f).startswith(p):
-                try:
-                    importlib.reload(mod)
-                except Exception as e:
-                    print("reload error:", name, e)
-
+        if f and os.path.abspath(f).startswith(plugin_dir):
+            try:
+                importlib.reload(mod)
+            except Exception as e:
+                print("reload error:", name, e)
 
 class JIKO_Bridge(plugins.CommandData):
     def Execute(self, doc):

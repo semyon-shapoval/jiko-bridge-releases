@@ -1,31 +1,29 @@
 import os
-from typing import Dict, Literal, Optional
-
-class ServerModel:
-    def __init__(
-            self, 
-            data: Optional[Dict] = None
-        ):
-        self.server_version = data.get('server_version', None)
-        self.cache_path = data.get('cache_path', None)
-        self.has_active_asset = data.get('has_active_asset', False)
-        self.active_asset_name = data.get('active_asset_name', None)
+from dataclasses import dataclass
+from typing import Any, Dict, Literal, Optional, Mapping
 
 
+@dataclass(frozen=True)
 class AssetModel:
-    def __init__(
-            self, 
-            data: Optional[Dict],
-        ):
-        self.asset_path = data.get('asset_path', None)
-        self.asset_type = data.get('asset_type', None)
-        self.pack_name = data.get('pack_name', None)
-        self.asset_name = data.get('asset_name', None)
+    """Represents an asset returned from the Jiko Bridge API."""
 
+    asset_path: Optional[str] = None
+    asset_type: Optional[str] = None
+    pack_name: Optional[str] = None
+    asset_name: Optional[str] = None
 
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "AssetModel":
+        return cls(
+            
+            asset_path=data.get("asset_path"),
+            asset_type=data.get("asset_type"),
+            pack_name=data.get("pack_name"),
+            asset_name=data.get("asset_name"),
+        )
 
     @property
-    def type(self):
+    def type(self) -> Optional[str]:
         ext = self.ext
         if ext == ".fbx":
             return "Assets"

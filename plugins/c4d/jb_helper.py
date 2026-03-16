@@ -1,5 +1,5 @@
 import c4d
-
+from jb_api import AssetModel
 
 class JB_Helpers:
     def __init__(self):
@@ -11,6 +11,12 @@ class JB_AssetHelper:
         if not doc:
             doc = c4d.documents.GetActiveDocument()
         self.doc = doc
+
+    def _has_instance(self, obj: c4d.BaseObject) -> bool:
+        def is_instance(o):
+            return o.CheckType(c4d.Oinstance)
+        
+        return any(is_instance(o) for o in self.structure.walk_generator(obj))
 
     def _get_asset_info(self, obj):
         if not obj:
@@ -26,13 +32,15 @@ class JB_AssetHelper:
                     pack_name = obj[key]
                 elif bc_name == "asset_name":
                     asset_name = obj[key]
+                elif bc_name == "asset_type":
+                    asset_type = obj[key]
 
-        return pack_name, asset_name
+        return pack_name, asset_name, asset_type
 
     def _validate_asset(self, obj):
-        pack_name, asset_name = self._get_asset_info(obj)
+        pack_name, asset_name, asset_type = self._get_asset_info(obj)
 
-        if asset_name and pack_name:
+        if asset_name and pack_name and asset_type:
             return True
         
         return False
@@ -93,7 +101,7 @@ class JB_StructureHelper:
 
         return obj, obj_exists
     
-    def _get_or_create_asset(self, asset):
+    def _get_or_create_asset(self, asset: AssetModel):
         def add_user_data(obj: c4d.BaseObject, name: str, default_value: str) -> None:
             containers = obj.GetUserDataContainer()
             if containers:
@@ -112,15 +120,17 @@ class JB_StructureHelper:
             if element:
                 obj[element] = default_value
 
-        root_null, _ = self._get_or_create_null(asset.type)
+        root_null, _ = self._get_or_create_null("Assets")
 
         asset_null, asset_exists = self._get_or_create_null(
-            f"Asset_{asset.pack_name}_{asset.asset_name}", asset.type)
+            f"Asset_{asset.pack_name}_{asset.asset_name}", "Assets")
 
         asset_null.InsertUnder(root_null)
 
-        add_user_data(asset_null, "asset_name", asset.asset_name)
+        add_user_data(asset_null, "database_name", asset.database_name)
         add_user_data(asset_null, "pack_name", asset.pack_name)
+        add_user_data(asset_null, "asset_name", asset.asset_name)
+        add_user_data(asset_null, "asset_type", asset.asset_type)
 
         if len(asset_null.GetChildren()) == 0:
             asset_exists = False
@@ -128,15 +138,19 @@ class JB_StructureHelper:
         return asset_null, asset_exists
 
     def _group_objects(
-            self, 
-            objects: list[c4d.BaseObject], 
-            target: c4d.BaseObject):
+        self, 
+        objects: list[c4d.BaseObject],
+        target: c4d.BaseObject,
+    ) -> None:
         """Group objects under the target object."""
         for obj in objects:
             obj.InsertUnder(target)
             obj.SetBit(c4d.BIT_ACTIVE)
 
-    def _get_objects(self, objects_mask = None):
+    def _get_objects(
+        self, 
+        objects_mask: list[c4d.BaseObject] = None
+    ) -> list[c4d.BaseObject]:
         objects = []
         obj = self.doc.GetFirstObject()
         if objects_mask:

@@ -36,7 +36,7 @@ class AssetModel:
     asset_name: Optional[str]
     bridge_type: Optional[str]
     database_name: Optional[str]
-
+    
     def __init__(self, data: dict):
         self.asset_path = data.get("asset_path")
         self.asset_type = data.get("asset_type")
@@ -44,6 +44,27 @@ class AssetModel:
         self.asset_name = data.get("asset_name")
         self.bridge_type = data.get("bridge_type")
         self.database_name = data.get("database_name")
+
+    def get_textures(self, res="1K") -> Dict[str, str]:
+        import re
+
+        if not self.asset_path or not os.path.exists(self.asset_path):
+            return {}
+
+        channels = ['basecolor', 'roughness', 'metallic', 'normal',
+                    'emissive', 'opacity', 'refraction', 'height', 'ao']
+        pattern = re.compile(r'_(%s)_(%s)' % ('|'.join(channels), res), re.IGNORECASE)
+
+        textures = {}
+        for root, _, files in os.walk(self.asset_path):
+            for filename in files:
+                if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff')):
+                    match = pattern.search(filename)
+                    if match:
+                        textures[match.group(1).lower()] = os.path.join(root, filename)
+
+        return textures
+
 
 class JB_API:
     def __init__(self, host: str = 'localhost', port: Optional[int] = None):

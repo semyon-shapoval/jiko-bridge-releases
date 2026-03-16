@@ -1,11 +1,16 @@
 import c4d
 import maxon
+from jb_api import AssetModel
 
 class JBMaterialImporter:
     def __init__(self):
         pass
 
-    def create_redshift_material(self, doc, asset):
+    def create_redshift_material(
+        self, 
+        doc: c4d.documents.BaseDocument, 
+        asset: AssetModel
+    ) -> c4d.BaseMaterial:
         '''
         Documentation for c4d modules
         Graph Node
@@ -140,7 +145,11 @@ class JBMaterialImporter:
 
         doc.InsertMaterial(material)
 
-    def create_arnold_material(self, doc, asset):
+    def create_arnold_material(
+        self, 
+        doc: c4d.documents.BaseDocument, 
+        asset: AssetModel
+    ):
         from arnold.material import ArnoldNodeMaterial, ArnoldMaterialTransaction
 
         channels = asset.get_textures()
@@ -201,7 +210,11 @@ class JBMaterialImporter:
 
         doc.InsertMaterial(arnoldMaterial.material)
 
-    def create_standard_material(self, doc, asset):
+    def create_standard_material(
+        self, 
+        doc: c4d.documents.BaseDocument, 
+        asset: AssetModel
+    ) -> c4d.BaseMaterial:
         """Create a standard material from the asset"""
         material = c4d.BaseMaterial(c4d.Mmaterial)
         material.SetName(asset.asset_name)
@@ -296,7 +309,7 @@ class JBMaterialImporter:
 
         return material
 
-    def import_material(self, asset):
+    def import_material(self, asset: AssetModel) -> bool:
         """Import Material from asset"""
         doc = c4d.documents.GetActiveDocument()
         render_id = doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]

@@ -1,8 +1,8 @@
 import re
 import c4d
 
-from jb_api import JB_API
 from jb_helper import JB_Helpers
+from jb_api import JB_API, AssetModel
 from jb_material_importer import JBMaterialImporter
 
 class JB_AssetImporter:
@@ -13,7 +13,7 @@ class JB_AssetImporter:
 
         self.doc = c4d.documents.GetActiveDocument()
 
-    def import_asset(self, asset = None) -> bool:
+    def import_asset(self, asset: AssetModel = None) -> bool:
         if not asset:
             selected_objects = self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
             override = False
@@ -36,14 +36,16 @@ class JB_AssetImporter:
 
         if not asset:
             return c4d.gui.MessageDialog("Could not get active asset")
-        
-        if asset.asset_type == "MODEL":
+
+        if asset.bridge_type == "model":
             return self._create_model(asset)
-        elif asset.asset_type == "MATERIAL":
+        elif asset.bridge_type == "material":
             return self.material_import.import_material(asset)
+        else:
+            return c4d.gui.MessageDialog(f"Unsupported bridge type: {asset.bridge_type}")
 
     def _override_model(self, obj):
-        pack_name, asset_name = self.helpers.asset._get_asset_info(obj)
+        pack_name, asset_name, asset_type = self.helpers.asset._get_asset_info(obj)
         asset = self.api.get_asset(pack_name, asset_name)
 
         if not asset:
@@ -60,7 +62,7 @@ class JB_AssetImporter:
         return asset
         
 
-    def _create_model(self, asset):
+    def _create_model(self, asset: AssetModel) -> bool:
         self.doc.SetActiveObject(None, c4d.SELECTION_NEW)
         asset_null, asset_exists = self.helpers.structure._get_or_create_asset(asset)
         objects_before = self.helpers.structure._get_objects()
@@ -70,13 +72,12 @@ class JB_AssetImporter:
             return False
 
         if asset_exists:
-            return self._create_instance(self.doc, asset_null, asset.asset_name)
+            self._create_instance(self.doc, asset_null, asset.asset_name)
+            return True
 
-        ext = asset.ext
-
-        if ext == '.fbx':
+        if asset.bridge_type == 'model':
             result = self._import_fbx(self.doc, asset.asset_path)
-        elif ext == '.abc':
+        elif asset.bridge_type == 'layout':
             result = self._import_alembic(self.doc, asset.asset_path)
         else:
             return False
@@ -85,9 +86,9 @@ class JB_AssetImporter:
         if result:
             new_objects = self.helpers.structure._get_objects(objects_before)
 
-            if ext == ".abc":
+            if asset.bridge_type == "layout":
                 self._convert_layout(self.doc, new_objects, asset_null)
-            elif ext == '.fbx':
+            elif asset.bridge_type == "model":
                 self.helpers.structure._group_objects(new_objects, asset_null)
 
         return True
@@ -112,7 +113,12 @@ class JB_AssetImporter:
 
         return instance
 
-    def _convert_layout(self, doc, new_objects, layout_null):
+    def _convert_layout(
+        self, 
+        doc: c4d.documents.BaseDocument, 
+        new_objects: list[c4d.BaseObject], 
+        layout_null: c4d.BaseObject
+    ):
         objs = []
         self.helpers.structure.walk(new_objects, lambda x: objs.append(x))
 
@@ -145,7 +151,7 @@ class JB_AssetImporter:
 
                     asset = assets[key]
 
-                    asset_null, asset_exists = self.helpers.structure._get_or_create_asset(asset)
+                    asset_null, _ = self.helpers.structure._get_or_create_asset(asset)
                     instance = self._create_instance(doc, asset_null, asset.asset_name)
                     mg = obj.GetUp().GetMg()
                     instance.SetMg(mg)
