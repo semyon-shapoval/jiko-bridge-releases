@@ -1,15 +1,16 @@
 import c4d
 
+
 class JBFileImporter:
     def import_file(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
         ext = self._get_ext(file_path)
-        if ext == '.fbx':
+        if ext == ".fbx":
             return self._import_fbx(doc, file_path)
-        elif ext == '.abc':
+        elif ext == ".abc":
             return self._import_alembic(doc, file_path)
-        elif ext == '.obj':
+        elif ext == ".obj":
             return self._import_obj(doc, file_path)
-        elif ext == '.usd':
+        elif ext == ".usd":
             return self._import_usd(doc, file_path)
         else:
             print(f"Unsupported file extension: {ext}")
@@ -17,6 +18,7 @@ class JBFileImporter:
 
     def _get_ext(self, file_path: str) -> str:
         from pathlib import Path
+
         return Path(file_path).suffix.lower()
 
     def _import_fbx(self, doc, file_path):
@@ -33,7 +35,9 @@ class JBFileImporter:
                 fbx_import[c4d.FBXEXPORT_LIGHTS] = True
                 fbx_import[c4d.FBXEXPORT_MATERIALS] = True
 
-        result = c4d.documents.MergeDocument(doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS)
+        result = c4d.documents.MergeDocument(
+            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
+        )
         if not result:
             print(f"Error importing FBX file: {file_path}")
         return result
@@ -44,7 +48,9 @@ class JBFileImporter:
             print("Alembic plugin not found")
             return False
 
-        result = c4d.documents.MergeDocument(doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS)
+        result = c4d.documents.MergeDocument(
+            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
+        )
         if not result:
             print(f"Error importing Alembic file: {file_path}")
         return result
@@ -55,7 +61,9 @@ class JBFileImporter:
             print("OBJ plugin not found")
             return False
 
-        result = c4d.documents.MergeDocument(doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS)
+        result = c4d.documents.MergeDocument(
+            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
+        )
         if not result:
             print(f"Error importing OBJ file: {file_path}")
         return result
@@ -66,7 +74,9 @@ class JBFileImporter:
             print("USD plugin not found")
             return False
 
-        result = c4d.documents.MergeDocument(doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS)
+        result = c4d.documents.MergeDocument(
+            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
+        )
         if not result:
             print(f"Error importing USD file: {file_path}")
         return result

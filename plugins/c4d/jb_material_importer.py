@@ -1,24 +1,23 @@
 import c4d
 import maxon
-from jb_api import AssetModel
+from jb_asset_model import AssetModel
+
 
 class JBMaterialImporter:
     def __init__(self):
         pass
 
     def create_redshift_material(
-        self, 
-        doc: c4d.documents.BaseDocument, 
-        asset: AssetModel
+        self, doc: c4d.documents.BaseDocument, asset: AssetModel
     ) -> c4d.BaseMaterial:
-        '''
+        """
         Documentation for c4d modules
         Graph Node
         https://developers.maxon.net/docs/py/2023_2/modules/maxon_generated/frameworks/graph/datatype/maxon.GraphNode.html
 
         Graph Interface
         https://developers.maxon.net/docs/py/2023_2/modules/maxon_generated/frameworks/graph/interface/maxon.GraphModelInterface.html
-        '''
+        """
 
         RS_ID = "com.redshift3d.redshift4c4d"
         REDSHIFT_NODESPACE_ID = f"{RS_ID}.class.nodespace"
@@ -38,7 +37,6 @@ class JBMaterialImporter:
         nodes_material = material.GetNodeMaterialReference()
         nodes_material.AddGraph(REDSHIFT_NODESPACE_ID)
         rs_graph = nodes_material.GetGraph(REDSHIFT_NODESPACE_ID)
-
 
         channels = asset.get_textures()
 
@@ -60,7 +58,7 @@ class JBMaterialImporter:
 
             def create_texture_node(channel):
                 texture_path = channels.get(channel, "")
-                node = rs_graph.AddChild("",  RS_TEX_ID)
+                node = rs_graph.AddChild("", RS_TEX_ID)
                 node.SetValue(NODE_NAME_ID, maxon.String(channel))
 
                 value = maxon.Data(maxon.Url(f"file:///{texture_path}"))
@@ -71,7 +69,7 @@ class JBMaterialImporter:
                 out_node = node.GetOutputs().GetChildren()[0]
 
                 return node, out_node
-            
+
             for channel in channels:
                 if channel == "basecolor":
                     node, out_node = create_texture_node(channel)
@@ -84,9 +82,7 @@ class JBMaterialImporter:
                 elif channel == "normal":
                     node, out_node = create_texture_node(channel)
                     bump_node = rs_graph.AddChild("", RS_BUMPMAP_ID)
-                    out_node.Connect(
-                        bump_node.GetInputs().GetChildren()[0]
-                    )
+                    out_node.Connect(bump_node.GetInputs().GetChildren()[0])
                     out_bump = bump_node.GetOutputs().GetChildren()[0]
                     out_bump.Connect(
                         rs_material.GetInputs().FindChild(
@@ -146,9 +142,7 @@ class JBMaterialImporter:
         doc.InsertMaterial(material)
 
     def create_arnold_material(
-        self, 
-        doc: c4d.documents.BaseDocument, 
-        asset: AssetModel
+        self, doc: c4d.documents.BaseDocument, asset: AssetModel
     ):
         from arnold.material import ArnoldNodeMaterial, ArnoldMaterialTransaction
 
@@ -164,11 +158,15 @@ class JBMaterialImporter:
 
         with ArnoldMaterialTransaction(arnoldMaterial) as transaction:
 
-            standard_surface = arnoldMaterial.AddShader("standard_surface", "standard_surface")
+            standard_surface = arnoldMaterial.AddShader(
+                "standard_surface", "standard_surface"
+            )
             arnoldMaterial.AddRootConnection(standard_surface, None, "shader")
 
             correct_node = arnoldMaterial.AddShader("color_correct", "color_correct")
-            arnoldMaterial.AddConnection(correct_node, None, standard_surface, "base_color")
+            arnoldMaterial.AddConnection(
+                correct_node, None, standard_surface, "base_color"
+            )
 
             for channel in channels.keys():
                 if channel == "basecolor":
@@ -179,29 +177,43 @@ class JBMaterialImporter:
                     arnoldMaterial.AddConnection(node, None, standard_surface, "normal")
                 elif channel == "roughness":
                     node = create_texture_node(channel)
-                    arnoldMaterial.AddConnection(node, None, standard_surface, "specular_roughness")
+                    arnoldMaterial.AddConnection(
+                        node, None, standard_surface, "specular_roughness"
+                    )
                 elif channel == "height":
                     node = create_texture_node(channel)
-                    displacement = arnoldMaterial.AddShader("displacement", "displacement")
+                    displacement = arnoldMaterial.AddShader(
+                        "displacement", "displacement"
+                    )
 
                     arnoldMaterial.AddRootConnection(displacement, None, "displacement")
-                    arnoldMaterial.AddConnection(node, None, displacement, "normal_displacement_input")
+                    arnoldMaterial.AddConnection(
+                        node, None, displacement, "normal_displacement_input"
+                    )
 
                 elif channel == "opacity":
                     node = create_texture_node(channel)
-                    arnoldMaterial.AddConnection(node, None, standard_surface, "opacity")
+                    arnoldMaterial.AddConnection(
+                        node, None, standard_surface, "opacity"
+                    )
 
                 elif channel == "emissive":
                     node = create_texture_node(channel)
                     arnoldMaterial.SetShaderValue(standard_surface, "emissive", 1.0)
-                    arnoldMaterial.AddConnection(node, None, standard_surface, "emissive_color")
+                    arnoldMaterial.AddConnection(
+                        node, None, standard_surface, "emissive_color"
+                    )
                 elif channel == "refraction":
                     node = create_texture_node(channel)
                     arnoldMaterial.SetShaderValue(standard_surface, "transmission", 1.0)
-                    arnoldMaterial.AddConnection(node, None, standard_surface, "transmission_color")
+                    arnoldMaterial.AddConnection(
+                        node, None, standard_surface, "transmission_color"
+                    )
                 elif channel == "metallic":
                     node = create_texture_node(channel)
-                    arnoldMaterial.AddConnection(node, None, standard_surface, "metalness")
+                    arnoldMaterial.AddConnection(
+                        node, None, standard_surface, "metalness"
+                    )
                 elif channel == "ao":
                     node = create_texture_node(channel)
                     arnoldMaterial.AddConnection(node, None, correct_node, "multiply")
@@ -211,9 +223,7 @@ class JBMaterialImporter:
         doc.InsertMaterial(arnoldMaterial.material)
 
     def create_standard_material(
-        self, 
-        doc: c4d.documents.BaseDocument, 
-        asset: AssetModel
+        self, doc: c4d.documents.BaseDocument, asset: AssetModel
     ) -> c4d.BaseMaterial:
         """Create a standard material from the asset"""
         material = c4d.BaseMaterial(c4d.Mmaterial)
@@ -230,7 +240,9 @@ class JBMaterialImporter:
             material.InsertShader(bmp)
             return bmp
 
-        def assign_channel_to_material(channel_use_const, channel_shader_const, channel_name):
+        def assign_channel_to_material(
+            channel_use_const, channel_shader_const, channel_name
+        ):
             try:
                 bmp = load_bitmap(channel_name)
                 material[channel_use_const] = True if channel_use_const else False
@@ -241,45 +253,37 @@ class JBMaterialImporter:
         for channel_name in channels.keys():
             if channel_name == "basecolor":
                 assign_channel_to_material(
-                    c4d.MATERIAL_USE_COLOR,
-                    c4d.MATERIAL_COLOR_SHADER,
-                    channel_name
+                    c4d.MATERIAL_USE_COLOR, c4d.MATERIAL_COLOR_SHADER, channel_name
                 )
             elif channel_name == "normal":
                 assign_channel_to_material(
-                    c4d.MATERIAL_USE_NORMAL,
-                    c4d.MATERIAL_NORMAL_SHADER,
-                    channel_name
+                    c4d.MATERIAL_USE_NORMAL, c4d.MATERIAL_NORMAL_SHADER, channel_name
                 )
             elif channel_name == "emissive":
                 assign_channel_to_material(
                     c4d.MATERIAL_USE_LUMINANCE,
                     c4d.MATERIAL_LUMINANCE_SHADER,
-                    channel_name
+                    channel_name,
                 )
             elif channel_name == "opacity":
                 assign_channel_to_material(
-                    c4d.MATERIAL_USE_ALPHA,
-                    c4d.MATERIAL_ALPHA_SHADER,
-                    channel_name
+                    c4d.MATERIAL_USE_ALPHA, c4d.MATERIAL_ALPHA_SHADER, channel_name
                 )
             elif channel_name == "refraction":
                 assign_channel_to_material(
                     c4d.MATERIAL_USE_TRANSPARENCY,
                     c4d.MATERIAL_TRANSPARENCY_SHADER,
-                    channel_name
+                    channel_name,
                 )
             elif channel_name == "height":
                 assign_channel_to_material(
                     c4d.MATERIAL_USE_DISPLACEMENT,
                     c4d.MATERIAL_DISPLACEMENT_SHADER,
-                    channel_name
+                    channel_name,
                 )
             elif channel_name == "opacity":
                 assign_channel_to_material(
-                    c4d.MATERIAL_USE_ALPHA,
-                    c4d.MATERIAL_ALPHA_SHADER,
-                    channel_name
+                    c4d.MATERIAL_USE_ALPHA, c4d.MATERIAL_ALPHA_SHADER, channel_name
                 )
             elif channel_name == "roughness":
                 bmp = load_bitmap(channel_name)
@@ -287,22 +291,28 @@ class JBMaterialImporter:
                 layer.SetName(channel_name)
                 data_id = layer.GetDataID()
 
-                material.SetParameter(data_id | c4d.REFLECTION_LAYER_TRANS_TEXTURE,
-                    bmp, c4d.DESCFLAGS_SET_0)
-                
+                material.SetParameter(
+                    data_id | c4d.REFLECTION_LAYER_TRANS_TEXTURE,
+                    bmp,
+                    c4d.DESCFLAGS_SET_0,
+                )
+
             elif channel_name == "metallic":
                 bmp = load_bitmap(channel_name)
                 layer = material.AddReflectionLayer()
                 layer.SetName(channel_name)
                 data_id = layer.GetDataID()
-                material.SetParameter(data_id | c4d.REFLECTION_LAYER_TRANS_TEXTURE,
-                    bmp, c4d.DESCFLAGS_SET_0)
+                material.SetParameter(
+                    data_id | c4d.REFLECTION_LAYER_TRANS_TEXTURE,
+                    bmp,
+                    c4d.DESCFLAGS_SET_0,
+                )
 
             elif channel_name == "ao":
                 assign_channel_to_material(
                     c4d.MATERIAL_USE_DIFFUSION,
                     c4d.MATERIAL_DIFFUSION_SHADER,
-                    channel_name
+                    channel_name,
                 )
             else:
                 print(f"Unknown texture: {channel_name}")
