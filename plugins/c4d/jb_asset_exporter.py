@@ -31,34 +31,40 @@ class JB_AssetExporter:
         ):
             return self.update_asset(selected_objects[0])
 
-        return self.prepare_asset(selected_objects)
+        return self.create_new_asset(selected_objects)
 
     def update_asset(self, obj: c4d.BaseObject):
-        asset_info = AssetModel.from_c4d_object(obj)
-        if not asset_info:
+        asset = AssetModel.from_c4d_object(obj)
+        if not asset:
             logger.error("Invalid asset information")
             return None
 
-        pack_name = asset_info.pack_name
-        asset_name = asset_info.asset_name
+        if not c4d.gui.QuestionDialog(
+            f"Update asset '{asset.asset_name}'?\nThis will overwrite the existing file."
+        ):
+            return None
 
         objects = self.scene.get_children(obj)
         if objects and objects[0] is obj:
             objects.pop(0)
 
         ext = self._detect_ext(objects)
-        filepath = self.file_exporter.export_file(self.doc, objects, ext)
+        filepath = self.export_with_placeholder(obj, ext)
 
         if filepath:
             success = self.api.update_asset(
-                filepath, pack_name, asset_name, asset_info.database_name or ""
+                filepath,
+                asset.pack_name,
+                asset.asset_name,
+                asset.asset_type,
+                asset.database_name,
             )
             if success:
-                logger.info("Asset %s updated successfully.", asset_name)
+                logger.info("Asset %s updated successfully.", asset.asset_name)
             else:
-                logger.error("Failed %s to update asset.", asset_name)
+                logger.error("Failed %s to update asset.", asset.asset_name)
 
-    def prepare_asset(self, objects: list[c4d.BaseObject]):
+    def create_new_asset(self, objects: list[c4d.BaseObject]):
         doc = self.doc
         ext = self._detect_ext(objects)
 
@@ -66,25 +72,21 @@ class JB_AssetExporter:
         tmp_null = c4d.BaseObject(c4d.Onull)
         tmp_null.SetName(tmp_name)
         doc.InsertObject(tmp_null)
-        self.scene.group_objects(objects, tmp_null)
 
-        if ext == ".abc":
-            with self.scene.temp_doc() as tmp_doc:
-                self.scene.replace_asset_nulls_with_placeholders(tmp_doc, objects)
-                export_null = tmp_doc.SearchObject(tmp_name)
-                export_objects = export_null.GetChildren() if export_null else []
-                file_path = self.file_exporter._generate_path(".abc")
-                filepath = self.file_exporter.export_abc(tmp_doc, export_objects, file_path)
-        else:
-            filepath = self.file_exporter.export_file(doc, objects, ext)
+        for obj in objects:
+            clone = obj.GetClone()
+            clone.InsertUnder(tmp_null)
+
+        filepath = self.export_with_placeholder(tmp_null, ext)
 
         if not filepath:
-            logger.error("Export failed, objects remain in temp null.")
-            self.scene.mark_as_error(tmp_null)
+            logger.error("Export failed.")
+            tmp_null.Remove()
             return None
 
         c4d.StatusSetText("Jiko Bridge: creating asset, please wait...")
         c4d.gui.SetMousePointer(c4d.MOUSE_BUSY)
+
         try:
             asset = self.api.create_asset(filepath)
         finally:
@@ -92,17 +94,52 @@ class JB_AssetExporter:
             c4d.StatusClear()
 
         if not asset:
-            logger.error(
-                "Failed to create asset for '%s', objects remain in temp null.",
-                filepath,
-            )
-            self.scene.mark_as_error(tmp_null)
+            logger.error("Failed to create asset for '%s'.", filepath)
+            tmp_null.Remove()
             return None
 
         self.scene.get_or_create_asset(doc, asset, target=tmp_null)
 
+    def export_with_placeholder(
+        self,
+        obj: c4d.BaseObject,
+        ext: str,
+    ) -> str | None:
+        for child in self.scene.get_children(obj):
+            if not child.CheckType(c4d.Oinstance):
+                continue
+            linked = child[c4d.INSTANCEOBJECT_LINK]
+            if not linked:
+                continue
+            self.scene.copy_user_data(linked, child)
+
+        with self.scene.temp_doc() as tmp_doc:
+            clone = obj.GetClone()
+            tmp_doc.InsertObject(clone)
+
+            for instance in self.scene.get_children(clone):
+                if not instance.CheckType(c4d.Oinstance):
+                    continue
+                asset_info = AssetModel.from_c4d_object(instance)
+                if (
+                    not asset_info
+                    or not asset_info.pack_name
+                    or not asset_info.asset_name
+                ):
+                    continue
+
+                placeholder = self.scene.create_placeholder(
+                    asset_info.pack_name, asset_info.asset_name
+                )
+                placeholder.SetMg(instance.GetMg())
+                placeholder.InsertBefore(instance)
+                instance.Remove()
+
+            export_objects = clone.GetChildren()
+            return self.file_exporter.export_file(tmp_doc, export_objects, ext)
+
+    def _has_instances(self, objects: list[c4d.BaseObject]) -> bool:
+        return any(o.CheckType(c4d.Oinstance) for o in self.scene.get_children(objects))
+
     def _detect_ext(self, objects: list[c4d.BaseObject]) -> str:
-        for obj in self.scene.get_children(objects):
-            if obj.CheckType(c4d.Oinstance):
-                return ".abc"
-        return ".fbx"
+        return ".abc" if self._has_instances(objects) else ".fbx"

@@ -6,13 +6,18 @@ from contextlib import contextmanager
 
 class JBSceneManager:
     @contextmanager
-    def temp_doc(self):
+    def temp_doc(self, debug: bool = False):
         """Создаёт временный документ и гарантированно уничтожает его после использования."""
         tmp_doc = c4d.documents.BaseDocument()
         try:
             yield tmp_doc
         finally:
-            c4d.documents.KillDocument(tmp_doc)
+            if debug:
+                c4d.documents.InsertBaseDocument(tmp_doc)
+                c4d.documents.SetActiveDocument(tmp_doc)
+                c4d.EventAdd()
+            else:
+                c4d.documents.KillDocument(tmp_doc)
 
     def walk(self, obj: c4d.BaseObject | None, fn):
         if obj is None:
@@ -120,14 +125,6 @@ class JBSceneManager:
             obj.InsertUnder(parent)
             obj.SetBit(c4d.BIT_ACTIVE)
 
-    def group_objects(
-        self, objects: list[c4d.BaseObject], parent: c4d.BaseObject
-    ) -> None:
-        """Перемещает все объекты под parent и выделяет их."""
-        for obj in objects:
-            obj.InsertUnder(parent)
-            obj.SetBit(c4d.BIT_ACTIVE)
-
     def set_selection(
         self, doc: c4d.documents.BaseDocument, objects: list[c4d.BaseObject]
     ) -> None:
@@ -148,10 +145,14 @@ class JBSceneManager:
         instance.SetName(f"Instance_{name}")
         instance[c4d.INSTANCEOBJECT_LINK] = link
         instance[c4d.INSTANCEOBJECT_RENDERINSTANCE_MODE] = 1
+
+        for key, bc in link.GetUserDataContainer():
+            self.set_user_data(instance, bc[c4d.DESC_NAME], link[key])
+
         doc.InsertObject(instance)
-        instance.SetBit(c4d.BIT_ACTIVE)
         if parent:
             instance.InsertUnder(parent)
+        instance.SetBit(c4d.BIT_ACTIVE)
         return instance
 
     def create_placeholder(self, pack_name: str, asset_name: str) -> c4d.BaseObject:
@@ -171,39 +172,11 @@ class JBSceneManager:
 
         return obj
 
-    def replace_asset_nulls_with_placeholders(
-        self, doc: c4d.documents.BaseDocument, selected_objects: list[c4d.BaseObject]
-    ) -> None:
-        """Заменяет все asset-null объекты в документе на плейсхолдеры, если их инстансы выделены."""
-        asset_null_names: set[str] = set()
-        for obj in self.get_children(selected_objects):
-            if not obj.CheckType(c4d.Oinstance):
-                continue
-            linked = obj[c4d.INSTANCEOBJECT_LINK]
-            if not linked:
-                continue
-            asset_info = AssetModel.from_c4d_object(linked)
-            if asset_info and asset_info.pack_name and asset_info.asset_name:
-                asset_null_names.add(linked.GetName())
-
-        for obj in self.get_all_objects(doc):
-            if obj.GetName() not in asset_null_names:
-                continue
-            if not obj.CheckType(c4d.Onull):
-                continue
-            asset_info = AssetModel.from_c4d_object(obj)
-            if not asset_info or not asset_info.pack_name or not asset_info.asset_name:
-                continue
-            for child in obj.GetChildren():
-                child.Remove()
-            self.create_placeholder(
-                asset_info.pack_name, asset_info.asset_name
-            ).InsertUnder(obj)
-
-    def extract_layout_placeholders(self, layout_null: c4d.BaseObject) -> list[dict]:
+    def extract_layout_placeholders(
+        self, doc: c4d.documents.BaseDocument, layout_null: c4d.BaseObject
+    ) -> list[dict]:
         objs = self.get_children(layout_null)
-
-        self.set_selection(objs)
+        self.set_selection(doc, objs)
         patterns = [
             re.compile(r"(?P<pack>.+?)_pack_(?P<asset>.+?)_asset$"),
             re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$"),
@@ -211,16 +184,15 @@ class JBSceneManager:
         result = []
 
         for obj in objs:
-            if not obj.CheckType(c4d.Opolygon):
-                continue
-
-            tag = next(
-                (t for t in obj.GetTags() if t.CheckType(c4d.Tpolygonselection)), None
+            match = next(
+                (
+                    m
+                    for t in obj.GetTags()
+                    for p in patterns
+                    if (m := p.match(t.GetName()))
+                ),
+                None,
             )
-            if not tag:
-                continue
-
-            match = next((m for p in patterns if (m := p.match(tag.GetName()))), None)
             if not match:
                 continue
 
@@ -228,7 +200,7 @@ class JBSceneManager:
                 {
                     "pack_name": match.group("pack"),
                     "asset_name": match.group("asset"),
-                    "matrix": obj.GetUp().GetMg(),
+                    "matrix": obj.GetMg(),
                 }
             )
             obj.Remove()
@@ -250,9 +222,17 @@ class JBSceneManager:
         if element:
             obj[element] = value
 
-    def mark_as_error(self, obj: c4d.BaseObject) -> None:
-        obj.SetName(f"error_{obj.GetName()}")
-        obj[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = (
-            c4d.ID_BASELIST_ICON_COLORIZE_MODE_CUSTOM
-        )
-        obj[c4d.ID_BASELIST_ICON_COLOR] = c4d.Vector(1, 0, 0)
+    def copy_user_data(self, src: c4d.BaseObject, dst: c4d.BaseObject) -> None:
+        for key, bc in src.GetUserDataContainer():
+            name = bc[c4d.DESC_NAME]
+            value = src[key]
+            self.set_user_data(dst, name, value)
+
+    def remove_empty_nulls(self, parent: c4d.BaseObject) -> None:
+        """Удаляет пустые Null-объекты внутри parent."""
+        for obj in parent.GetChildren():
+            if (
+                obj.GetType() in (c4d.Onull, c4d.Oalembicgenerator)
+                and len(obj.GetChildren()) == 0
+            ):
+                obj.Remove()

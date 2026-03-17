@@ -64,25 +64,21 @@ class JB_API:
         return AssetModel(data) if data else None
 
     def get_active_asset(self) -> Optional[AssetModel]:
-        resp = self._request("/api/asset/active")
-        asset = AssetModel(resp.get("data", {}))
-        return asset
+        return self._asset_from_response(self._request("/api/asset/active"))
 
     def get_asset(
         self,
         pack_name: str,
         asset_name: str,
-        asset_type: str = "MODEL",
-        path_type: str = "model",
+        database_name: Optional[str] = None,
+        asset_type: Optional[str] = None,
     ) -> Optional[AssetModel]:
-        params = urllib.parse.urlencode(
-            {
-                "pack_name": pack_name,
-                "asset_name": asset_name,
-                "asset_type": asset_type,
-                "path_type": path_type,
-            }
-        )
+        query: dict = {"pack_name": pack_name, "asset_name": asset_name}
+        if database_name:
+            query["database_name"] = database_name
+        if asset_type:
+            query["asset_type"] = asset_type
+        params = urllib.parse.urlencode(query)
         return self._asset_from_response(self._request(f"/api/asset?{params}"))
 
     def create_asset(self, filepath: str) -> Optional[AssetModel]:
@@ -93,15 +89,19 @@ class JB_API:
         )
 
     def update_asset(
-        self, filepath: str, pack_name: str, asset_name: str, database_name: str = ""
+        self,
+        filepath: str,
+        pack_name: str,
+        asset_name: str,
+        asset_type: str,
+        database_name: Optional[str] = None,
     ) -> Optional[dict]:
-        return self._request(
-            "/api/asset/update",
-            {
-                "filepath": filepath,
-                "pack_name": pack_name,
-                "asset_name": asset_name,
-                "database_name": database_name,
-            },
-            method="PUT",
-        )
+        payload: dict = {
+            "filepath": filepath,
+            "pack_name": pack_name,
+            "asset_name": asset_name,
+            "asset_type": asset_type,
+        }
+        if database_name:
+            payload["database_name"] = database_name
+        return self._request("/api/asset/update", payload, method="POST")

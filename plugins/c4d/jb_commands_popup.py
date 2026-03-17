@@ -19,7 +19,7 @@ class JB_CommandsPopup:
         c4d.EventAdd()
 
     def import_asset(self):
-        self.asset_import.import_asset()
+        self.asset_import.import_assets()
         c4d.EventAdd()
 
     def show_popup_menu(self):

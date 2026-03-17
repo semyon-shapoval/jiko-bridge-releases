@@ -21,7 +21,12 @@ class JBFileImporter:
 
         return Path(file_path).suffix.lower()
 
-    def _import_fbx(self, doc, file_path):
+    def _merge(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
+        return c4d.documents.MergeDocument(
+            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
+        )
+
+    def _import_fbx(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
         plug = c4d.plugins.FindPlugin(1026370, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("FBX plugin not found")
@@ -35,48 +40,47 @@ class JBFileImporter:
                 fbx_import[c4d.FBXEXPORT_LIGHTS] = True
                 fbx_import[c4d.FBXEXPORT_MATERIALS] = True
 
-        result = c4d.documents.MergeDocument(
-            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
-        )
+        result = self._merge(doc, file_path)
         if not result:
             print(f"Error importing FBX file: {file_path}")
         return result
 
-    def _import_alembic(self, doc, file_path):
+    def _import_alembic(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
         plug = c4d.plugins.FindPlugin(1028082, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("Alembic plugin not found")
             return False
 
-        result = c4d.documents.MergeDocument(
-            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
-        )
+        data = {}
+        if plug.Message(c4d.MSG_RETRIEVEPRIVATEDATA, data):
+            abc_import = data.get("imexporter", None)
+            if abc_import:
+                abc_import[c4d.ABCIMPORT_SCALE] = 1
+                abc_import[c4d.ABCIMPORT_FACESETS] = True
+
+        result = self._merge(doc, file_path)
         if not result:
             print(f"Error importing Alembic file: {file_path}")
         return result
 
-    def _import_obj(self, doc, file_path):
+    def _import_obj(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
         plug = c4d.plugins.FindPlugin(1030177, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("OBJ plugin not found")
             return False
 
-        result = c4d.documents.MergeDocument(
-            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
-        )
+        result = self._merge(doc, file_path)
         if not result:
             print(f"Error importing OBJ file: {file_path}")
         return result
 
-    def _import_usd(self, doc, file_path):
+    def _import_usd(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
         plug = c4d.plugins.FindPlugin(1055178, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("USD plugin not found")
             return False
 
-        result = c4d.documents.MergeDocument(
-            doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
-        )
+        result = self._merge(doc, file_path)
         if not result:
             print(f"Error importing USD file: {file_path}")
         return result

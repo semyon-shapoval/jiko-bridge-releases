@@ -22,10 +22,10 @@ class AssetModel:
         self.asset_name = data.get("asset_name")
         self.bridge_type = data.get("bridge_type")
         self.database_name = data.get("database_name")
-        
+
     def __repr__(self):
         return f"AssetModel({self.__dict__})"
-    
+
     def get_textures(self, res="1K") -> Dict[str, str]:
         import re
 
@@ -60,7 +60,7 @@ class AssetModel:
         """Читает user data из c4d.BaseObject и возвращает AssetModel или None."""
         import c4d
 
-        pack_name, asset_name, asset_type = None, None, None
+        pack_name, asset_name, asset_type, database_name = None, None, None, None
 
         containers = obj.GetUserDataContainer()
         if containers:
@@ -72,6 +72,8 @@ class AssetModel:
                     asset_name = obj[key]
                 elif bc_name == "asset_type":
                     asset_type = obj[key]
+                elif bc_name == "database_name":
+                    database_name = obj[key] or None
 
         if not (pack_name and asset_name and asset_type):
             logger.warning(
@@ -88,5 +90,6 @@ class AssetModel:
                 "pack_name": pack_name,
                 "asset_name": asset_name,
                 "asset_type": asset_type,
+                "database_name": database_name,
             }
         )

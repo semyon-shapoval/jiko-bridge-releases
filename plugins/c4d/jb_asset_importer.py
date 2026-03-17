@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from typing import Optional
 
 import c4d
@@ -26,120 +25,111 @@ class JB_AssetImporter:
         """Returns the active Cinema 4D document."""
         return c4d.documents.GetActiveDocument()
 
-    def get_active_asset(self) -> Optional[AssetModel]:
-        """Tries to get the active asset based on the current selection or database."""
+    def reimport_assets(self) -> list[AssetModel]:
+        """Reimports assets from the database based on the current selection."""
         selected_objects = self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
+        asset_nulls = []
+        assets: list[AssetModel] = []
+
         for obj in selected_objects:
             if obj.CheckType(c4d.Onull):
-                asset = AssetModel.from_c4d_object(obj)
-                if asset:
-                    logger.debug("Active asset found from selection: %r", asset)
-                    return asset
+                assetInfo = AssetModel.from_c4d_object(obj)
+                if assetInfo:
+                    asset_nulls.append(obj)
 
-        asset = self.api.get_active_asset()
-        if asset:
-            logger.debug("Active asset fetched from database: %r", asset)
-            return asset
+        if len(asset_nulls) > 0:
+            confirmed = c4d.gui.QuestionDialog(
+                f"Reimport existing assets?\n {len(asset_nulls)} asset(s) will be reimported"
+            )
+            if confirmed:
+                for asset_null in asset_nulls:
+                    for child in asset_null.GetChildren():
+                        child.Remove()
+                    asset_info = AssetModel.from_c4d_object(asset_null)
+                    if asset_info:
+                        asset = self.api.get_asset(
+                            asset_info.pack_name,
+                            asset_info.asset_name,
+                            asset_info.database_name,
+                            asset_info.asset_type,
+                        )
+                        if asset:
+                            assets.append(asset)
+        return assets
 
-        logger.warning("No active asset found in selection.")
-        return None
-
-    def import_asset(self, asset: Optional[AssetModel] = None) -> bool:
+    def import_assets(self, assets: list[AssetModel] = []) -> None:
         """Imports an asset from the database. If asset is None, tries to get active asset."""
-        if not asset:
-            asset = self.get_active_asset()
-            if not asset:
-                logger.warning("No active asset found in database.")
-                return False
+        assets = self.reimport_assets()
 
-        if asset.bridge_type == "layout":
-            return self.create_layout(asset)
-        elif asset.bridge_type == "model":
-            success, _ = self.create_model(asset)
-            return success
-        elif asset.bridge_type == "material":
-            return self.material_import.import_material(asset)
-        else:
-            logger.warning("Unsupported bridge type: %s", asset.bridge_type)
+        if len(assets) == 0:
+            asset = self.api.get_active_asset()
+            if asset:
+                assets.append(asset)
 
-        return False
+        if len(assets) == 0:
+            logger.warning("No active asset found in selection or database.")
+            return
 
-    def override_model(self, obj):
-        """Overrides the model under the given object with the asset from the database."""
-        asset_info = AssetModel.from_c4d_object(obj)
-        if not asset_info:
-            return None
+        for asset in assets:
+            if asset.bridge_type == "layout":
+                return self.convert_to_instances(asset)
+            elif asset.bridge_type == "model":
+                return self.create_model(asset)
+            elif asset.bridge_type == "material":
+                return self.material_import.import_material(asset)
+            else:
+                logger.warning("Unsupported bridge type: %s", asset.bridge_type)
+            continue
 
-        asset = self.api.get_asset(
-            asset_info.pack_name,
-            asset_info.asset_name,
-            asset_info.asset_type,
-        )
-
-        if not asset:
-            logger.warning("Asset not found in database. Cannot override.")
-            return None
-
-        self.scene.set_selection([])
-        for obj in self.scene.get_children(obj):
-            obj.Remove()
-
-        self.import_asset(asset)
-        return asset
-
-    def create_model(self, asset: AssetModel) -> tuple[bool, bool]:
+    def import_file(self, asset: AssetModel, target: c4d.BaseObject) -> None:
+        """Гарантирует что ассет импортирован. Возвращает asset_null или None при ошибке."""
         doc = self.doc
-        self.scene.set_selection(doc, [])
-        asset_null, asset_exists = self.scene.get_or_create_asset(doc, asset)
-
-        if not asset_null:
-            logger.error("Failed to create asset null")
-            return False, False
-
-        if asset_exists:
-            self.scene.create_instance(doc, asset_null, asset.asset_name)
-            return True, False
 
         with self.scene.temp_doc() as tmp_doc:
             if not self.file_importer.import_file(tmp_doc, asset.asset_path):
-                return False, False
+                return
 
             root_objects = self.scene.get_top_objects(tmp_doc)
             if not root_objects:
                 logger.warning(
                     "No new objects were imported for asset: %s", asset.asset_name
                 )
-                return True, False
+                return
 
-            self.scene.transfer_from_doc(tmp_doc, doc, root_objects, asset_null)
+            self.scene.transfer_from_doc(tmp_doc, doc, root_objects, target)
 
-        return True, True
+    def create_model(self, asset: AssetModel) -> c4d.BaseObject:
+        asset_null, asset_exists = self.scene.get_or_create_asset(self.doc, asset)
 
-    def create_layout(self, asset: AssetModel) -> bool:
-        """Import an asset as a layout."""
-        success, imported = self.create_model(asset)
+        if asset_exists and len(asset_null.GetChildren()) > 0:
+            self.scene.create_instance(self.doc, asset_null, asset.asset_name)
+        else:
+            self.import_file(asset, asset_null)
 
-        if not success:
-            return False
+        return asset_null 
 
-        if not imported:
-            return True
+
+    def convert_to_instances(self, asset: AssetModel) -> None:
+        layout_null = self.create_model(asset) 
+
+        layout_null_children = layout_null.GetChildren()
+        if len(layout_null_children) > 0 and layout_null_children[0].CheckType(c4d.Oinstance):
+            return
 
         doc = self.doc
-
-        asset_null, _ = self.scene.get_or_create_asset(doc, asset)
-        placeholders = self.scene.extract_layout_placeholders(asset_null)
-        imported: set[str] = set()
+        placeholders = self.scene.extract_layout_placeholders(doc, layout_null)
 
         for p in placeholders:
-            asset = self.api.get_asset(p["pack_name"], p["asset_name"])
-            if not asset:
+            child_asset = self.api.get_asset(p["pack_name"], p["asset_name"])
+            if not child_asset:
                 continue
-            asset_null, _ = self.scene.get_or_create_asset(doc, asset)
-            instance = self.scene.create_instance(doc, asset_null, asset.asset_name)
+
+            asset_null, asset_exists = self.scene.get_or_create_asset(doc, child_asset)
+            if not asset_exists:
+                self.import_file(child_asset, asset_null)
+
+            instance = self.scene.create_instance(doc, asset_null, child_asset.asset_name)
             instance.SetMg(p["matrix"])
-            instance.InsertUnder(asset_null)
-            key = f"{p['pack_name']}/{p['asset_name']}"
-            if key not in imported:
-                imported.add(key)
-                self.import_asset(asset)
+            instance.InsertUnder(layout_null)
+
+        self.scene.remove_empty_nulls(layout_null)
