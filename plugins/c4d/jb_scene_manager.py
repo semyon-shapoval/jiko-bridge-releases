@@ -2,9 +2,12 @@ import re
 import c4d
 from jb_asset_model import AssetModel
 from contextlib import contextmanager
+from jb_tree import JBTree
 
+class JBSceneManager():
+    def __init__(self):
+        self.tree = JBTree()
 
-class JBSceneManager:
     @contextmanager
     def temp_doc(self, debug: bool = False):
         """Создаёт временный документ и гарантированно уничтожает его после использования."""
@@ -18,44 +21,6 @@ class JBSceneManager:
                 c4d.EventAdd()
             else:
                 c4d.documents.KillDocument(tmp_doc)
-
-    def walk(self, obj: c4d.BaseObject | None, fn):
-        if obj is None:
-            return
-
-        if isinstance(obj, (list, tuple)):
-            for o in obj:
-                self.walk(o, fn)
-            return
-
-        fn(obj)
-        child = obj.GetDown()
-        while child:
-            self.walk(child, fn)
-            child = child.GetNext()
-
-    def get_children(self, obj) -> list[c4d.BaseObject]:
-        """Возвращает плоский список всех объектов в иерархии obj."""
-        result = []
-        self.walk(obj, result.append)
-        return result
-
-    def get_all_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
-        result = []
-        obj = doc.GetFirstObject()
-        while obj:
-            self.walk(obj, result.append)
-            obj = obj.GetNext()
-        return result
-
-    def get_top_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
-        """Возвращает список корневых объектов документа."""
-        result = []
-        obj = doc.GetFirstObject()
-        while obj:
-            result.append(obj)
-            obj = obj.GetNext()
-        return result
 
     def get_or_create_null(
         self,
@@ -125,14 +90,6 @@ class JBSceneManager:
             obj.InsertUnder(parent)
             obj.SetBit(c4d.BIT_ACTIVE)
 
-    def set_selection(
-        self, doc: c4d.documents.BaseDocument, objects: list[c4d.BaseObject]
-    ) -> None:
-        """Снимает выделение и выделяет переданные объекты."""
-        doc.SetActiveObject(None, c4d.SELECTION_NEW)
-        for obj in objects:
-            obj.SetBit(c4d.BIT_ACTIVE)
-
     def create_instance(
         self,
         doc: c4d.documents.BaseDocument,
@@ -175,8 +132,7 @@ class JBSceneManager:
     def extract_layout_placeholders(
         self, doc: c4d.documents.BaseDocument, layout_null: c4d.BaseObject
     ) -> list[dict]:
-        objs = self.get_children(layout_null)
-        self.set_selection(doc, objs)
+        objs = self.tree.get_children(layout_null)
         patterns = [
             re.compile(r"(?P<pack>.+?)_pack_(?P<asset>.+?)_asset$"),
             re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$"),

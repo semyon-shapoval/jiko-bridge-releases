@@ -324,7 +324,7 @@ class JBMaterialImporter:
         doc = c4d.documents.GetActiveDocument()
         render_id = doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
 
-        if render_id == 1036219:
+        if render_id == c4d.VPrsrenderer:
             self.create_redshift_material(doc, asset)
         elif render_id == 1029988:
             self.create_arnold_material(doc, asset)

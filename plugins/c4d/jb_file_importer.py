@@ -1,6 +1,5 @@
 import c4d
 
-
 class JBFileImporter:
     def import_file(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
         ext = self._get_ext(file_path)
@@ -27,7 +26,7 @@ class JBFileImporter:
         )
 
     def _import_fbx(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
-        plug = c4d.plugins.FindPlugin(1026370, c4d.PLUGINTYPE_SCENESAVER)
+        plug = c4d.plugins.FindPlugin(c4d.FORMAT_FBX_EXPORT, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("FBX plugin not found")
             return False
@@ -46,7 +45,7 @@ class JBFileImporter:
         return result
 
     def _import_alembic(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
-        plug = c4d.plugins.FindPlugin(1028082, c4d.PLUGINTYPE_SCENESAVER)
+        plug = c4d.plugins.FindPlugin(c4d.FORMAT_ABCEXPORT, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("Alembic plugin not found")
             return False
@@ -64,7 +63,7 @@ class JBFileImporter:
         return result
 
     def _import_obj(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
-        plug = c4d.plugins.FindPlugin(1030177, c4d.PLUGINTYPE_SCENESAVER)
+        plug = c4d.plugins.FindPlugin(c4d.FORMAT_OBJ2IMPORT, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("OBJ plugin not found")
             return False
@@ -75,7 +74,7 @@ class JBFileImporter:
         return result
 
     def _import_usd(self, doc: c4d.documents.BaseDocument, file_path: str) -> bool:
-        plug = c4d.plugins.FindPlugin(1055178, c4d.PLUGINTYPE_SCENESAVER)
+        plug = c4d.plugins.FindPlugin(c4d.FORMAT_USDIMPORT, c4d.PLUGINTYPE_SCENESAVER)
         if not plug:
             print("USD plugin not found")
             return False
