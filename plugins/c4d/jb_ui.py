@@ -1,6 +1,7 @@
 import c4d
 import ctypes
 from ctypes import wintypes
+from contextlib import contextmanager
 
 from jb_asset_importer import JB_AssetImporter
 from jb_asset_exporter import JB_AssetExporter
@@ -36,3 +37,14 @@ class JB_CommandsPopup:
             self.import_asset()
         elif res == IDC_POPUP_ACTION_EXPORT:
             self.export_asset()
+
+@contextmanager
+def busy_cursor(status_text: str = ""):
+    if status_text:
+        c4d.StatusSetText(status_text)
+    c4d.gui.SetMousePointer(c4d.MOUSE_BUSY)
+    try:
+        yield
+    finally:
+        c4d.gui.SetMousePointer(c4d.MOUSE_NORMAL)
+        c4d.StatusClear()

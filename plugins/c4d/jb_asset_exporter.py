@@ -5,8 +5,8 @@ from jb_logger import get_logger
 from jb_api import JB_API
 from jb_asset_model import AssetModel
 from jb_scene_manager import JBSceneManager
-from jb_file_exporter import JBFileExporter
-from jb_utils import busy_cursor
+from jb_file_io import JBFileExporter
+from jb_ui import busy_cursor
 
 logger = get_logger(__name__)
 
@@ -46,17 +46,22 @@ class JB_AssetExporter:
             return
 
         if self.api.update_asset(
-            filepath, asset.pack_name, asset.asset_name,
-            asset.asset_type, asset.database_name,
+            filepath,
+            asset.pack_name,
+            asset.asset_name,
+            asset.asset_type,
+            asset.database_name,
         ):
             logger.info("Asset '%s' updated successfully.", asset.asset_name)
         else:
             logger.error("Failed to update asset '%s'.", asset.asset_name)
 
     def _create_new_asset(self, objects: list[c4d.BaseObject]) -> None:
-        if not c4d.gui.QuestionDialog("Create new asset from selected objects? Go to Jiko Bridge app to finish setup."):
+        if not c4d.gui.QuestionDialog(
+            "Create new asset from selected objects? Go to Jiko Bridge app to finish setup."
+        ):
             return
-        
+
         doc = self.doc
         ext = self._detect_ext(objects)
 
@@ -88,17 +93,13 @@ class JB_AssetExporter:
             obj.GetClone().InsertUnder(null)
         return null
 
-
     def export_with_placeholder(self, obj: c4d.BaseObject, ext: str) -> str | None:
         self._sync_instance_user_data(obj)
 
         with self.scene.temp_doc() as tmp_doc:
-            clone = obj.GetClone()
-            tmp_doc.InsertObject(clone)
+            clone = self.scene.copy_object_to_doc(tmp_doc, obj)
             self._replace_instances_with_placeholders(clone)
-            return self.file_exporter.export_file(
-                tmp_doc, clone.GetChildren(), ext
-            )
+            return self.file_exporter.export_file(tmp_doc, clone.GetChildren(), ext)
 
     def _sync_instance_user_data(self, obj: c4d.BaseObject) -> None:
         for child in self.scene.tree.get_children(obj):
@@ -117,10 +118,27 @@ class JB_AssetExporter:
             if not info or not info.pack_name or not info.asset_name:
                 continue
 
-            placeholder = self.scene.create_placeholder(info.pack_name, info.asset_name)
+            placeholder = self._create_placeholder(info.pack_name, info.asset_name)
             placeholder.SetMg(instance.GetMg())
             placeholder.InsertBefore(instance)
             instance.Remove()
+
+    def _create_placeholder(self, pack_name: str, asset_name: str) -> c4d.BaseObject:
+        """Создаёт плейсхолдер в виде полигона с тегом выделения, содержащим имя ассета. Используется для layout-а."""
+        obj = c4d.BaseObject(c4d.Oplane)
+        obj.SetName(f"{pack_name}__{asset_name}")
+        obj[c4d.PRIM_PLANE_WIDTH] = 100
+        obj[c4d.PRIM_PLANE_HEIGHT] = 100
+        obj[c4d.PRIM_PLANE_SUBW] = 1
+        obj[c4d.PRIM_PLANE_SUBH] = 1
+
+        tag = obj.MakeTag(c4d.Tpolygonselection)
+        tag.SetName(f"{pack_name}__{asset_name}")
+
+        selection = tag.GetBaseSelect()
+        selection.SelectAll(1)
+
+        return obj
 
     def _is_single_asset_null(self, objects: list[c4d.BaseObject]) -> bool:
         return (

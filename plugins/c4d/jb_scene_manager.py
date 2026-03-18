@@ -4,7 +4,8 @@ from jb_asset_model import AssetModel
 from contextlib import contextmanager
 from jb_tree import JBTree
 
-class JBSceneManager():
+
+class JBSceneManager:
     def __init__(self):
         self.tree = JBTree()
 
@@ -21,6 +22,46 @@ class JBSceneManager():
                 c4d.EventAdd()
             else:
                 c4d.documents.KillDocument(tmp_doc)
+
+    def copy_object_to_doc(
+        self, doc: c4d.documents.BaseDocument, object: c4d.BaseObject
+    ) -> c4d.BaseObject:
+        clone = object.GetClone()
+        doc.InsertObject(clone)
+
+        for child in self.tree.get_children(clone):
+            for tag in child.GetTags():
+                if not tag.CheckType(c4d.Ttexture):
+                    continue
+                mat = tag[c4d.TEXTURETAG_MATERIAL]
+                if not mat:
+                    continue
+                mat_clone = mat.GetClone()
+                doc.InsertMaterial(mat_clone)
+                tag[c4d.TEXTURETAG_MATERIAL] = mat_clone
+
+        return clone
+
+    def copy_objects_from_doc(
+        self,
+        src: c4d.documents.BaseDocument,
+        dst: c4d.documents.BaseDocument,
+        objects: list[c4d.BaseObject],
+        parent: c4d.BaseObject,
+    ) -> None:
+        """Переносит материалы и объекты из src в dst, вставляя объекты под parent."""
+        mat = src.GetFirstMaterial()
+        while mat:
+            next_mat = mat.GetNext()
+            mat.Remove()
+            dst.InsertMaterial(mat)
+            mat = next_mat
+
+        for obj in objects:
+            obj.Remove()
+            dst.InsertObject(obj)
+            obj.InsertUnder(parent)
+            obj.SetBit(c4d.BIT_ACTIVE)
 
     def get_or_create_null(
         self,
@@ -68,100 +109,6 @@ class JBSceneManager():
             asset_existed = False
 
         return asset_null, asset_existed
-
-    def transfer_from_doc(
-        self,
-        src: c4d.documents.BaseDocument,
-        dst: c4d.documents.BaseDocument,
-        objects: list[c4d.BaseObject],
-        parent: c4d.BaseObject,
-    ) -> None:
-        """Переносит материалы и объекты из src в dst, вставляя объекты под parent."""
-        mat = src.GetFirstMaterial()
-        while mat:
-            next_mat = mat.GetNext()
-            mat.Remove()
-            dst.InsertMaterial(mat)
-            mat = next_mat
-
-        for obj in objects:
-            obj.Remove()
-            dst.InsertObject(obj)
-            obj.InsertUnder(parent)
-            obj.SetBit(c4d.BIT_ACTIVE)
-
-    def create_instance(
-        self,
-        doc: c4d.documents.BaseDocument,
-        link: c4d.BaseObject,
-        name: str,
-        parent: c4d.BaseObject = None,
-    ) -> c4d.BaseObject:
-        """Создаёт Oinstance, вставляет в сцену и опционально под parent."""
-        instance = c4d.BaseObject(c4d.Oinstance)
-        instance.SetName(f"Instance_{name}")
-        instance[c4d.INSTANCEOBJECT_LINK] = link
-        instance[c4d.INSTANCEOBJECT_RENDERINSTANCE_MODE] = 1
-
-        for key, bc in link.GetUserDataContainer():
-            self.set_user_data(instance, bc[c4d.DESC_NAME], link[key])
-
-        doc.InsertObject(instance)
-        if parent:
-            instance.InsertUnder(parent)
-        instance.SetBit(c4d.BIT_ACTIVE)
-        return instance
-
-    def create_placeholder(self, pack_name: str, asset_name: str) -> c4d.BaseObject:
-        """Создаёт плейсхолдер в виде полигона с тегом выделения, содержащим имя ассета. Используется для layout-а."""
-        obj = c4d.BaseObject(c4d.Oplane)
-        obj.SetName(f"{pack_name}__{asset_name}")
-        obj[c4d.PRIM_PLANE_WIDTH] = 100
-        obj[c4d.PRIM_PLANE_HEIGHT] = 100
-        obj[c4d.PRIM_PLANE_SUBW] = 1
-        obj[c4d.PRIM_PLANE_SUBH] = 1
-
-        tag = obj.MakeTag(c4d.Tpolygonselection)
-        tag.SetName(f"{pack_name}__{asset_name}")
-
-        selection = tag.GetBaseSelect()
-        selection.SelectAll(1)
-
-        return obj
-
-    def extract_layout_placeholders(
-        self, doc: c4d.documents.BaseDocument, layout_null: c4d.BaseObject
-    ) -> list[dict]:
-        objs = self.tree.get_children(layout_null)
-        patterns = [
-            re.compile(r"(?P<pack>.+?)_pack_(?P<asset>.+?)_asset$"),
-            re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$"),
-        ]
-        result = []
-
-        for obj in objs:
-            match = next(
-                (
-                    m
-                    for t in obj.GetTags()
-                    for p in patterns
-                    if (m := p.match(t.GetName()))
-                ),
-                None,
-            )
-            if not match:
-                continue
-
-            result.append(
-                {
-                    "pack_name": match.group("pack"),
-                    "asset_name": match.group("asset"),
-                    "matrix": obj.GetMg(),
-                }
-            )
-            obj.Remove()
-
-        return result
 
     def set_user_data(self, obj: c4d.BaseObject, name: str, value: str) -> None:
         for key, bc in obj.GetUserDataContainer():
