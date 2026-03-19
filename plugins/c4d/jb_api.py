@@ -54,7 +54,10 @@ class JB_API:
         try:
             req = urllib.request.Request(url, data=data, headers=headers, method=method)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode())
+                parsed = json.loads(resp.read().decode())
+                pretty = json.dumps(parsed, indent=2, ensure_ascii=False)
+                logger.debug("API response: %s %s\n%s", method, endpoint, pretty)
+                return parsed
         except Exception as e:
             logger.exception(f"JB_API error: {e}")
             return None

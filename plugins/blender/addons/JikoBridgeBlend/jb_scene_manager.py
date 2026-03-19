@@ -111,9 +111,13 @@ class JBSceneManager:
     # Cleanup
     # ------------------------------------------------------------------
 
-    def remove_empty_collections(self, parent_collection: bpy.types.Collection) -> None:
-        """Удаляет пустые дочерние коллекции."""
-        for child in list(parent_collection.children):
-            if len(child.objects) == 0 and len(child.children) == 0:
-                parent_collection.children.unlink(child)
-                bpy.data.collections.remove(child)
+    def remove_empty_from_collection(
+        self, parent_collection: bpy.types.Collection
+    ) -> None:
+        """Удаляет объекты типа Empty из коллекции, исключая инстансы коллекций."""
+        for obj in list(parent_collection.objects):
+            if obj.type == "EMPTY" and obj.instance_type != "COLLECTION":
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+        for child in parent_collection.children:
+            self.remove_empty_from_collection(child)

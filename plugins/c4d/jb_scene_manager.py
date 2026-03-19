@@ -13,6 +13,11 @@ class JBSceneManager:
     def temp_doc(self, debug: bool = False):
         """Создаёт временный документ и гарантированно уничтожает его после использования."""
         tmp_doc = c4d.documents.BaseDocument()
+
+        """ unit_scale = c4d.UnitScaleData()
+        unit_scale.SetUnitScale(1.0, c4d.DOCUMENT_UNIT_CM)
+        tmp_doc[c4d.DOCUMENT_DOCUNIT] = unit_scale """
+
         try:
             yield tmp_doc
         finally:
@@ -23,24 +28,28 @@ class JBSceneManager:
             else:
                 c4d.documents.KillDocument(tmp_doc)
 
-    def copy_object_to_doc(
-        self, doc: c4d.documents.BaseDocument, object: c4d.BaseObject
-    ) -> c4d.BaseObject:
-        clone = object.GetClone()
-        doc.InsertObject(clone)
+    @contextmanager
+    def isolated_doc(self, doc: c4d.documents.BaseDocument, objects: list[c4d.BaseObject], debug: bool = True):
+        """Создаёт изолированный документ с объектами и их материалами."""
+        isolated = c4d.documents.IsolateObjects(doc, objects)
 
-        for child in self.tree.get_children(clone):
-            for tag in child.GetTags():
-                if not tag.CheckType(c4d.Ttexture):
-                    continue
-                mat = tag[c4d.TEXTURETAG_MATERIAL]
-                if not mat:
-                    continue
-                mat_clone = mat.GetClone()
-                doc.InsertMaterial(mat_clone)
-                tag[c4d.TEXTURETAG_MATERIAL] = mat_clone
+        unit_scale = c4d.UnitScaleData()
+        unit_scale.SetUnitScale(0.01, c4d.DOCUMENT_UNIT_M)
+        isolated[c4d.DOCUMENT_DOCUNIT] = unit_scale
 
-        return clone
+        if not isolated:
+            yield None
+            return
+
+        try:
+            yield isolated
+        finally:
+            if debug:
+                c4d.documents.InsertBaseDocument(isolated)
+                c4d.documents.SetActiveDocument(isolated)
+                c4d.EventAdd()
+            else:
+                c4d.documents.KillDocument(isolated)
 
     def copy_objects_from_doc(
         self,
@@ -62,6 +71,15 @@ class JBSceneManager:
             dst.InsertObject(obj)
             obj.InsertUnder(parent)
             obj.SetBit(c4d.BIT_ACTIVE)
+
+    def rescale_cm_to_m(self, doc: c4d.documents.BaseDocument) -> None:
+        """Масштабирует все объекты документа из CM в M (делит на 100)."""
+        factor = 0.01
+
+        for obj in self.tree.get_all_objects(doc):
+            ml = obj.GetMl()
+            ml.off *= factor
+            obj.SetMl(ml)
 
     def get_or_create_null(
         self,

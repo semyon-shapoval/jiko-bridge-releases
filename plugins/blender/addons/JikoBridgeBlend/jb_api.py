@@ -1,3 +1,4 @@
+from urllib import response
 import urllib.request
 import urllib.parse
 import json
@@ -6,9 +7,11 @@ import platform
 from typing import Optional
 
 from .jb_asset_model import AssetModel
+from .jb_logger import get_logger
 
 DEFAULT_PORT = 5174
 
+logger = get_logger(__name__)
 
 def _get_port() -> int:
     system = platform.system()
@@ -51,10 +54,12 @@ class JB_API:
         try:
             req = urllib.request.Request(url, data=data, headers=headers, method=method)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
+                logger.debug("Making API request: %s %s %s %s", method, url, data, resp)
                 return json.loads(resp.read().decode())
         except Exception as e:
-            print(f"JB_API error: {e}")
+            logger.error("API request failed: %s", e)
             return None
+
 
     def _asset_from_response(self, resp: Optional[dict]) -> Optional[AssetModel]:
         data = (resp or {}).get("data")

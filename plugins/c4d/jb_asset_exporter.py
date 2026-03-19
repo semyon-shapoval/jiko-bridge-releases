@@ -6,7 +6,7 @@ from jb_api import JB_API
 from jb_asset_model import AssetModel
 from jb_scene_manager import JBSceneManager
 from jb_file_io import JBFileExporter
-from jb_ui import busy_cursor
+from jb_utils import busy_cursor, confirm
 
 logger = get_logger(__name__)
 
@@ -35,13 +35,13 @@ class JB_AssetExporter:
             logger.error("Invalid asset information on object: %s", obj.GetName())
             return
 
-        if not c4d.gui.QuestionDialog(
+        if not confirm(
             f"Update asset '{asset.asset_name}'?\nThis will overwrite the existing file."
         ):
             return
 
         ext = self._detect_ext(self.scene.tree.get_children(obj))
-        filepath = self.export_with_placeholder(obj, ext)
+        filepath = self._export_file(obj, ext)
         if not filepath:
             return
 
@@ -57,7 +57,7 @@ class JB_AssetExporter:
             logger.error("Failed to update asset '%s'.", asset.asset_name)
 
     def _create_new_asset(self, objects: list[c4d.BaseObject]) -> None:
-        if not c4d.gui.QuestionDialog(
+        if not confirm(
             "Create new asset from selected objects? Go to Jiko Bridge app to finish setup."
         ):
             return
@@ -66,7 +66,7 @@ class JB_AssetExporter:
         ext = self._detect_ext(objects)
 
         tmp_null = self._build_temp_null(doc, objects)
-        filepath = self.export_with_placeholder(tmp_null, ext)
+        filepath = self._export_file(tmp_null, ext)
 
         if not filepath:
             logger.error("Export failed — removing temporary null.")
@@ -93,13 +93,14 @@ class JB_AssetExporter:
             obj.GetClone().InsertUnder(null)
         return null
 
-    def export_with_placeholder(self, obj: c4d.BaseObject, ext: str) -> str | None:
+    def _export_file(self, obj: c4d.BaseObject, ext: str) -> str | None:
         self._sync_instance_user_data(obj)
 
-        with self.scene.temp_doc() as tmp_doc:
-            clone = self.scene.copy_object_to_doc(tmp_doc, obj)
-            self._replace_instances_with_placeholders(clone)
-            return self.file_exporter.export_file(tmp_doc, clone.GetChildren(), ext)
+        with self.scene.isolated_doc(self.doc, [obj]) as tmp_doc:
+            root = tmp_doc.GetFirstObject()
+            self._replace_instances_with_placeholders(root)
+            self.scene.rescale_cm_to_m(tmp_doc)
+            return self.file_exporter.export_file(tmp_doc, root.GetChildren(), ext)
 
     def _sync_instance_user_data(self, obj: c4d.BaseObject) -> None:
         for child in self.scene.tree.get_children(obj):

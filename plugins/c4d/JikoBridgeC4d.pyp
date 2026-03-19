@@ -25,14 +25,16 @@ def load_plugin_modules():
 
 def reload_plugin_modules():
     importlib.invalidate_caches()
-    for name, mod in list(sys.modules.items()):
-        f = getattr(mod, "__file__", None)
-        if f and os.path.abspath(f).startswith(plugin_dir):
-            try:
-                importlib.reload(mod)
-            except Exception as e:
-                print(f"[Jiko Bridge] Error reloading module {name}: {e}")
-
+    
+    plugin_modules = {
+        name: mod for name, mod in list(sys.modules.items())
+        if getattr(mod, "__file__", None) 
+        and os.path.abspath(mod.__file__).startswith(plugin_dir)
+    }
+    
+    for name in plugin_modules:
+        del sys.modules[name]
+    
 
 load_arnold_module()
 load_plugin_modules()
@@ -40,7 +42,7 @@ load_plugin_modules()
 class JIKO_Bridge(plugins.CommandData):
     def Execute(self, doc):
         reload_plugin_modules()
-        from jb_commands_popup import JB_CommandsPopup
+        from jb_ui import JB_CommandsPopup
 
         JB_CommandsPopup().show_popup_menu()
         return True

@@ -8,6 +8,7 @@ from jb_api import JB_API
 from jb_material_importer import JBMaterialImporter
 from jb_file_io import JBFileImporter
 from jb_asset_model import AssetModel
+from jb_utils import confirm
 
 logger = get_logger(__name__)
 
@@ -45,7 +46,7 @@ class JB_AssetImporter:
         if not asset_nulls:
             return []
 
-        if not c4d.gui.QuestionDialog(
+        if not confirm(
             f"Reimport existing assets?\n{len(asset_nulls)} asset(s) will be reimported"
         ):
             return []
@@ -97,7 +98,7 @@ class JB_AssetImporter:
             if not root_objects:
                 logger.warning("No objects imported for asset: %s", asset.asset_name)
                 return
-
+            
             self.scene.copy_objects_from_doc(tmp_doc, doc, root_objects, target)
 
     def _create_model(self, asset: AssetModel) -> c4d.BaseObject:
@@ -129,7 +130,7 @@ class JB_AssetImporter:
         self.scene.remove_empty_nulls(layout_null)
 
     def _extract_instances(self, layout_null: c4d.BaseObject) -> list[dict]:
-        objs = self.tree.get_children(layout_null)
+        objs = self.scene.tree.get_children(layout_null)
         patterns = [
             re.compile(r"(?P<pack>.+?)_pack_(?P<asset>.+?)_asset$"),
             re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$"),
@@ -174,7 +175,7 @@ class JB_AssetImporter:
         instance[c4d.INSTANCEOBJECT_RENDERINSTANCE_MODE] = 1
 
         for key, bc in link.GetUserDataContainer():
-            self.set_user_data(instance, bc[c4d.DESC_NAME], link[key])
+            self.scene.set_user_data(instance, bc[c4d.DESC_NAME], link[key])
 
         doc.InsertObject(instance)
         if parent:

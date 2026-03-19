@@ -17,9 +17,5 @@ def get_logger(name: str) -> logging.Logger:
     console.setLevel(logging.DEBUG)
     console.setFormatter(formatter)
     logger.addHandler(console)
-    
-    external_console = logging.StreamHandler(sys.__stdout__)
-    external_console.setFormatter(formatter)
-    logger.addHandler(external_console)
 
     return logger

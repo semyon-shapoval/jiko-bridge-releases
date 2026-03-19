@@ -125,10 +125,12 @@ class JB_AssetImporter:
             if not exists:
                 self._import_file(child_asset, asset_col)
 
-            instance = self._create_instance(asset_col, child_asset.asset_name)
+            instance = self._create_instance(
+                asset_col, child_asset.asset_name, parent_collection=layout_col
+            )
             instance.matrix_world = p["matrix"]
 
-        self.scene.remove_empty_collections(layout_col)
+        self.scene.remove_empty_from_collection(layout_col)
 
     def _create_instance(
         self,
@@ -162,12 +164,31 @@ class JB_AssetImporter:
             asset = obj.get("jb_placeholder_asset")
 
             if not (pack and asset):
-                match = next(
-                    (m for p in patterns if (m := p.match(obj.name))),
-                    None,
+                # Пробуем извлечь из имени материала
+                mat_name = (
+                    next(
+                        (m.name for m in obj.data.materials if m),
+                        None,
+                    )
+                    if obj.data and hasattr(obj.data, "materials")
+                    else None
                 )
+
+                if mat_name:
+                    match = next(
+                        (m for p in patterns if (m := p.match(mat_name))),
+                        None,
+                    )
+                else:
+                    # Fallback на имя объекта
+                    match = next(
+                        (m for p in patterns if (m := p.match(obj.name))),
+                        None,
+                    )
+
                 if not match:
                     continue
+
                 pack = match.group("pack")
                 asset = match.group("asset")
 
