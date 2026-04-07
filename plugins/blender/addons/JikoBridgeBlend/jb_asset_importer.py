@@ -68,7 +68,7 @@ class JB_AssetImporter:
         self.scene.import_file_to_container(asset.asset_path, container)
 
     def _create_model(self, asset: AssetModel):
-        container, exists = self.scene.get_or_create_asset_container(asset)
+        container, exists = self.scene.get_or_create_asset(asset)
         if exists:
             self.scene.create_instance(container, asset.asset_name)
         else:
@@ -81,9 +81,7 @@ class JB_AssetImporter:
             if not child_asset:
                 continue
 
-            asset_container, exists = self.scene.get_or_create_asset_container(
-                child_asset
-            )
+            asset_container, exists = self.scene.get_or_create_asset(child_asset)
             if not exists:
                 self._import_file(child_asset, asset_container)
 

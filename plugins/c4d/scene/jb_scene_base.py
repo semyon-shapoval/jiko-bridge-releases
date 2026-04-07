@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from typing import Optional
 
 
@@ -10,14 +9,6 @@ class JBSceneBase(ABC):
 
     Both C4D and Blender implementations must satisfy this contract so that
     jb_asset_importer and jb_asset_exporter remain DCC-agnostic.
-
-    Hierarchy:
-        JBSceneBase      (this file             — abstract contract)
-            └── JBTree           (jb_scene_tree.py      — traversal)
-                    └── JBSceneSelect    (jb_scene_select.py    — selection)
-                            └── JBSceneInstance  (jb_scene_instance.py  — instances & placeholders)
-                                    └── JBSceneFileIO    (jb_scene_file_io.py  — file import/export)
-                                            └── JBSceneManager   (jb_scene_manager.py  — containers & scene management)
     """
 
     # ------------------------------------------------------------------

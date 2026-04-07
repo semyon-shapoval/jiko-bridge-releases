@@ -1,10 +1,11 @@
 import c4d
 from typing import Optional
 
-from jb_asset_model import AssetModel
 from jb_logger import get_logger
-from jb_scene_tree import JBTree
 from jb_utils import confirm as _confirm
+
+from jb_asset_model import AssetModel
+from scene.jb_scene_tree import JBTree
 
 logger = get_logger(__name__)
 

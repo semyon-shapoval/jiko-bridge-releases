@@ -4,7 +4,7 @@ from typing import Callable
 
 import c4d
 
-from jb_scene_base import JBSceneBase
+from scene.jb_scene_base import JBSceneBase
 
 
 class JBTree(JBSceneBase):

@@ -69,7 +69,7 @@ class JB_AssetExporter:
             logger.error("Failed to create asset.")
             return
 
-        container, _ = self.scene.get_or_create_asset_container(asset)
+        container, _ = self.scene.get_or_create_asset(asset)
         self.scene.move_objects_to_container(objects, container)
         logger.info("Asset '%s' created.", asset.asset_name)
 

@@ -1,7 +1,7 @@
 import c4d
 
 from jb_logger import get_logger
-from jb_scene_manager import JBSceneManager
+from scene.jb_scene_manager import JBSceneManager
 from jb_api import JB_API
 from jb_material_importer import JBMaterialImporter
 from jb_asset_model import AssetModel

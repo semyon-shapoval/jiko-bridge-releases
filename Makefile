@@ -10,4 +10,4 @@ blend:
 	$(BLENDER_PATH) "$(USERPROFILE)\Desktop\Untitled.blend"
 
 c4d:
-	$(C4D_PATH) g_console=true "$(USERPROFILE)\Desktop\Untitled.c4d"
+	$(C4D_PATH) "$(USERPROFILE)\Desktop\Untitled.c4d"

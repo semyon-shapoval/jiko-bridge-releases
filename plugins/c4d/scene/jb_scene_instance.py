@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import c4d
 
-from jb_asset_model import AssetModel
 from jb_logger import get_logger
-from jb_scene_select import JBSceneSelect
+
+from jb_asset_model import AssetModel
+from scene.jb_scene_select import JBSceneSelect
 
 logger = get_logger(__name__)
 

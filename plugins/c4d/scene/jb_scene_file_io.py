@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Optional
 
 from jb_logger import get_logger
-from jb_scene_instance import JBSceneInstance
+
+from scene.jb_scene_instance import JBSceneInstance
 
 logger = get_logger(__name__)
 
