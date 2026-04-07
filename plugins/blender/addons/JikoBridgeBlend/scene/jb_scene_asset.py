@@ -1,7 +1,7 @@
 import bpy
 from typing import Optional
 
-from .jb_asset_model import AssetModel
+from ..jb_asset_model import AssetModel
 from .jb_scene_container import JBSceneContainer
 
 

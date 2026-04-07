@@ -2,7 +2,7 @@ import c4d
 
 from jb_logger import get_logger
 from jb_api import JB_API
-from scene.jb_scene_manager import JBSceneManager
+from scene.jb_scene import JBScene
 
 logger = get_logger(__name__)
 
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 class JB_AssetExporter:
     def __init__(self):
         self.api = JB_API()
-        self.scene = JBSceneManager()
+        self.scene = JBScene()
 
     def export_asset(self) -> None:
         asset_container = self.scene.get_selected_asset_container()

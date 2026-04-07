@@ -2,9 +2,10 @@ import bpy
 
 from .jb_api import JB_API
 from .jb_asset_model import AssetModel
-from .jb_scene_manager import JBSceneManager
 from .jb_material_importer import JBMaterialImporter
 from .jb_logger import get_logger
+
+from .scene.jb_scene import JBScene
 
 logger = get_logger(__name__)
 
@@ -12,7 +13,7 @@ logger = get_logger(__name__)
 class JB_AssetImporter:
     def __init__(self):
         self.api = JB_API()
-        self.scene = JBSceneManager()
+        self.scene = JBScene()
         self.material_importer = JBMaterialImporter()
 
     def import_assets(self) -> None:

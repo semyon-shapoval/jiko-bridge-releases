@@ -8,7 +8,7 @@ from scene.jb_scene_asset import JBSceneAsset
 logger = get_logger(__name__)
 
 
-class JBSceneManager(JBSceneAsset):
+class JBScene(JBSceneAsset):
     """High-level import / export operations for the active C4D scene."""
 
     def import_file_to_container(self, file_path: str, container) -> None:

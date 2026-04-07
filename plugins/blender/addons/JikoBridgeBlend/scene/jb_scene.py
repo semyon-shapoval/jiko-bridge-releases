@@ -1,8 +1,7 @@
-import bpy
 from typing import Optional
 
 from .jb_scene_asset import JBSceneAsset
-from .jb_logger import get_logger
+from ..jb_logger import get_logger
 
 # TODO: Port C4D scene utilities from plugins/c4d/jb_scene_manager.py
 # - support recursive editable conversion / modifier application like C4D make_editable_recursive
@@ -11,7 +10,7 @@ from .jb_logger import get_logger
 logger = get_logger(__name__)
 
 
-class JBSceneManager(JBSceneAsset):
+class JBScene(JBSceneAsset):
     """High-level import / export operations for the active Blender scene."""
 
     def import_file_to_container(self, file_path: str, container) -> None:
