@@ -4,10 +4,13 @@ from typing import Callable
 
 import c4d
 
+from jb_scene_base import JBSceneBase
 
-class JBTree:
+
+class JBTree(JBSceneBase):
     """Traversal and querying of Cinema 4D object hierarchies.
 
+    Implements the traversal group of JBSceneBase.
     Responsible only for reading the object tree — no mutations,
     no document management, no user data.
     """
@@ -44,9 +47,7 @@ class JBTree:
         self.walk(obj, result.append)
         return result
 
-    def get_top_objects(
-        self, doc: c4d.documents.BaseDocument
-    ) -> list[c4d.BaseObject]:
+    def get_top_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
         """Return the direct children of the document root (no recursion)."""
         result: list[c4d.BaseObject] = []
         obj = doc.GetFirstObject()
@@ -55,9 +56,7 @@ class JBTree:
             obj = obj.GetNext()
         return result
 
-    def get_all_objects(
-        self, doc: c4d.documents.BaseDocument
-    ) -> list[c4d.BaseObject]:
+    def get_all_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
         """Return every object in *doc* as a flat list."""
         result: list[c4d.BaseObject] = []
         obj = doc.GetFirstObject()

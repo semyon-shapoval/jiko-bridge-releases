@@ -6,6 +6,11 @@ from .jb_logger import get_logger
 
 logger = get_logger(__name__)
 
+_PLACEHOLDER_PATTERNS = [
+    re.compile(r"(?P<pack>.+?)_pack_(?P<asset>.+?)_asset$"),
+    re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$"),
+]
+
 
 class AssetModel:
     asset_path: Optional[str]
@@ -79,3 +84,12 @@ class AssetModel:
                 "database_name": database_name,
             }
         )
+
+    @classmethod
+    def from_placeholder_name(cls, name: str) -> Optional[dict]:
+        """Parse pack_name / asset_name from a placeholder object/material name."""
+        for pattern in _PLACEHOLDER_PATTERNS:
+            m = pattern.match(name)
+            if m:
+                return {"pack_name": m.group("pack"), "asset_name": m.group("asset")}
+        return None

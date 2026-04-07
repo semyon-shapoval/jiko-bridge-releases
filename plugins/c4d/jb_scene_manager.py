@@ -1,22 +1,32 @@
-import re
 import c4d
-from jb_asset_model import AssetModel
 from contextlib import contextmanager
-from jb_tree import JBTree
+from typing import Optional
+
+from jb_asset_model import AssetModel
+from jb_scene_file_io import JBSceneFileIO
+from jb_logger import get_logger
 
 
-class JBSceneManager:
-    def __init__(self):
-        self.tree = JBTree()
+logger = get_logger(__name__)
+
+
+class JBSceneManager(JBSceneFileIO):
+    # ------------------------------------------------------------------
+    # Active document property
+    # ------------------------------------------------------------------
+
+    @property
+    def doc(self) -> c4d.documents.BaseDocument:
+        return c4d.documents.GetActiveDocument()
 
     @contextmanager
-    def temp_doc(self, debug: bool = False):
+    def temp_doc(self, unit_scale: int = c4d.DOCUMENT_UNIT_CM, debug: bool = False):
         """Создаёт временный документ и гарантированно уничтожает его после использования."""
         tmp_doc = c4d.documents.BaseDocument()
 
-        """ unit_scale = c4d.UnitScaleData()
-        unit_scale.SetUnitScale(1.0, c4d.DOCUMENT_UNIT_CM)
-        tmp_doc[c4d.DOCUMENT_DOCUNIT] = unit_scale """
+        unit_scale_data = c4d.UnitScaleData()
+        unit_scale_data.SetUnitScale(1, unit_scale)
+        tmp_doc[c4d.DOCUMENT_DOCUNIT] = unit_scale_data
 
         try:
             yield tmp_doc
@@ -29,13 +39,19 @@ class JBSceneManager:
                 c4d.documents.KillDocument(tmp_doc)
 
     @contextmanager
-    def isolated_doc(self, doc: c4d.documents.BaseDocument, objects: list[c4d.BaseObject], debug: bool = True):
+    def isolated_doc(
+        self,
+        doc: c4d.documents.BaseDocument,
+        objects: list[c4d.BaseObject],
+        unit_scale: int = c4d.DOCUMENT_UNIT_CM,
+        debug: bool = False,
+    ):
         """Создаёт изолированный документ с объектами и их материалами."""
         isolated = c4d.documents.IsolateObjects(doc, objects)
 
-        unit_scale = c4d.UnitScaleData()
-        unit_scale.SetUnitScale(0.01, c4d.DOCUMENT_UNIT_M)
-        isolated[c4d.DOCUMENT_DOCUNIT] = unit_scale
+        unit_scale_data = c4d.UnitScaleData()
+        unit_scale_data.SetUnitScale(1, unit_scale)
+        isolated[c4d.DOCUMENT_DOCUNIT] = unit_scale_data
 
         if not isolated:
             yield None
@@ -72,14 +88,23 @@ class JBSceneManager:
             obj.InsertUnder(parent)
             obj.SetBit(c4d.BIT_ACTIVE)
 
-    def rescale_cm_to_m(self, doc: c4d.documents.BaseDocument) -> None:
-        """Масштабирует все объекты документа из CM в M (делит на 100)."""
-        factor = 0.01
+    def project_scale(
+        self, doc: c4d.documents.BaseDocument, factor: float = 0.01
+    ) -> None:
+        """Масштабирует сцену:
+        - точки полигональных объектов (меш не деформируется, Scale остаётся 1)
+        - позиции всех объектов (относительные, не трогая Rotation и Scale)
+        """
 
-        for obj in self.tree.get_all_objects(doc):
-            ml = obj.GetMl()
-            ml.off *= factor
-            obj.SetMl(ml)
+        for obj in self.get_all_objects(doc):
+            if obj.IsInstanceOf(c4d.Opolygon):
+                points = obj.GetAllPoints()
+                if points:
+                    obj.SetAllPoints([p * factor for p in points])
+                    obj.Message(c4d.MSG_UPDATE)
+
+            pos = obj.GetRelPos()
+            obj.SetRelPos(pos * factor)
 
     def get_or_create_null(
         self,
@@ -157,3 +182,101 @@ class JBSceneManager:
                 and len(obj.GetChildren()) == 0
             ):
                 obj.Remove()
+
+    def make_editable_recursive(
+        self,
+        obj: c4d.BaseObject | None,
+        doc: c4d.documents.BaseDocument,
+    ) -> None:
+        if obj is None:
+            return
+
+        # Сохраняем соседей и родителя до конвертации — после они могут стать невалидными
+        next_obj = obj.GetNext()
+        parent = obj.GetUp()
+
+        # Сначала рекурсивно обходим детей
+        self.make_editable_recursive(obj.GetDown(), doc)
+
+        if not obj.IsAlive() or obj.IsInstanceOf(c4d.Opolygon):
+            self.make_editable_recursive(next_obj, doc)
+            return
+
+        result = c4d.utils.SendModelingCommand(
+            command=c4d.MCOMMAND_MAKEEDITABLE,
+            list=[obj],
+            mode=c4d.MODELINGCOMMANDMODE_ALL,
+            doc=doc,
+        )
+
+        if isinstance(result, list):
+            for new_obj in reversed(result):
+                if parent:
+                    new_obj.InsertUnder(parent)
+                else:
+                    doc.InsertObject(new_obj)
+
+        self.make_editable_recursive(next_obj, doc)
+
+    # ------------------------------------------------------------------
+    # Unified API — used by shared importer / exporter
+    # ------------------------------------------------------------------
+
+    def get_or_create_asset_container(self, asset: AssetModel, target=None) -> tuple:
+        """Unified API: wraps get_or_create_asset using internal doc property."""
+        return self.get_or_create_asset(self.doc, asset, target)
+
+    def get_asset_info(self, container) -> Optional[AssetModel]:
+        """Unified API: reads AssetModel from a C4D null's user data."""
+        return AssetModel.from_c4d_object(container)
+
+    def get_objects_recursive(self, container) -> list:
+        """Unified API: direct children of asset null (isolated_doc handles depth)."""
+        return container.GetChildren()
+
+    def clear_container(self, container) -> None:
+        """Unified API: remove all children from asset null."""
+        for child in container.GetChildren():
+            child.Remove()
+
+    def cleanup_empty_objects(self, container) -> None:
+        """Unified API: alias for remove_empty_nulls."""
+        self.remove_empty_nulls(container)
+
+    def move_objects_to_container(self, objects: list, container) -> None:
+        """Unified API: re-parents objects under asset null."""
+        for obj in objects:
+            obj.Remove()
+            obj.InsertUnder(container)
+
+    def import_file_to_container(self, file_path: str, container) -> None:
+        """Unified API: import file and place objects under container."""
+        with self.temp_doc() as tmp_doc:
+            if not self.import_file(tmp_doc, file_path):
+                logger.warning("No objects imported for file: %s", file_path)
+                return
+            root_objects = self.get_top_objects(tmp_doc)
+            if not root_objects:
+                logger.warning("No objects found after import: %s", file_path)
+                return
+            self.project_scale(tmp_doc, 1)
+            self.copy_objects_from_doc(tmp_doc, self.doc, root_objects, container)
+
+    def export_to_temp_file(self, objects: list, ext: str) -> Optional[str]:
+        """Unified API: export objects to temp file, replacing instances with placeholders."""
+        for obj in objects:
+            if obj.CheckType(c4d.Oinstance):
+                linked = obj[c4d.INSTANCEOBJECT_LINK]
+                if linked:
+                    self.copy_user_data(linked, obj)
+
+        with self.isolated_doc(
+            self.doc, objects, unit_scale=c4d.DOCUMENT_UNIT_M, debug=False
+        ) as tmp_doc:
+            if tmp_doc is None:
+                return None
+            self._replace_instances_with_placeholders(tmp_doc.GetFirstObject())
+            tmp_doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
+            self.make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
+            self.project_scale(tmp_doc, 0.01)
+            return self.export_file(tmp_doc, ext)

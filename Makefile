@@ -6,8 +6,8 @@ dev-win-env:
 	venv\Scripts\python -m pip install --upgrade pip
 	venv\Scripts\pip install -r requirements.txt
 
-open-win-test-blend:
+blend:
 	$(BLENDER_PATH) "$(USERPROFILE)\Desktop\Untitled.blend"
 
-open-win-test-c4d:
+c4d:
 	$(C4D_PATH) g_console=true "$(USERPROFILE)\Desktop\Untitled.c4d"

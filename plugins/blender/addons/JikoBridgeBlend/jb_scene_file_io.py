@@ -6,11 +6,31 @@ from pathlib import Path
 from typing import Optional
 
 from .jb_logger import get_logger
+from .jb_scene_instance import JBSceneInstance
 
 logger = get_logger(__name__)
 
 
-class JBFileImporter:
+class JBSceneFileIO(JBSceneInstance):
+    """File import/export layer in the scene hierarchy.
+
+    Provides DCC-specific import and export methods that operate on the
+    Blender context scene.
+    Sits between JBSceneInstance and JBSceneManager in the chain:
+
+        JBSceneBase → JBTree → JBSceneSelect → JBSceneInstance
+            → JBSceneFileIO → JBSceneManager
+    """
+
+    def __init__(self):
+        base = os.path.join(tempfile.gettempdir(), "jiko-bridge")
+        os.makedirs(base, exist_ok=True)
+        self.cache_path = base
+
+    # ------------------------------------------------------------------
+    # Import
+    # ------------------------------------------------------------------
+
     def import_file(self, file_path: str) -> list:
         ext = Path(file_path).suffix.lower()
         handler = {
@@ -31,7 +51,6 @@ class JBFileImporter:
         return handler(file_path)
 
     def _get_new_objects(self, before: set) -> list:
-        """Returns objects added to the scene since before."""
         return [obj for obj in bpy.context.scene.objects if obj not in before]
 
     def _import_fbx(self, file_path: str) -> list:
@@ -79,49 +98,40 @@ class JBFileImporter:
             return []
         return self._get_new_objects(before)
 
-
-class JBFileExporter:
-    def __init__(self):
-        base = os.path.join(tempfile.gettempdir(), "jiko-bridge")
-        os.makedirs(base, exist_ok=True)
-        self.cache_path = base
+    # ------------------------------------------------------------------
+    # Export
+    # ------------------------------------------------------------------
 
     def _generate_path(self, ext: str) -> str:
         filename = f"tmp_{int(time.time())}{ext}"
         return os.path.join(self.cache_path, filename)
 
-    def export_file(self, objects: list, ext: str) -> Optional[str]:
+    def export_file(self, ext: str) -> Optional[str]:
         file_path = self._generate_path(ext)
         handler = {
             ".fbx": self._export_fbx,
             ".abc": self._export_alembic,
             ".glb": self._export_gltf,
+            ".obj": self._export_obj,
+            ".usd": self._export_usd,
         }.get(ext)
 
         if not handler:
             logger.error("Unsupported export extension: %s", ext)
             return None
 
-        return handler(objects, file_path)
+        return handler(file_path)
 
-    def _select_only(self, objects: list) -> None:
-        for obj in bpy.context.scene.collection.all_objects:
-            obj.select_set(False)
-        for obj in objects:
-            obj.select_set(True)
-        if objects:
-            bpy.context.view_layer.objects.active = objects[0]
-
-    def _export_fbx(self, objects: list, file_path: str) -> Optional[str]:
-        self._select_only(objects)
+    def _export_fbx(self, file_path: str) -> Optional[str]:
         try:
             bpy.ops.export_scene.fbx(
                 filepath=file_path,
-                use_selection=True,
-                apply_scale_options="FBX_SCALE_ALL",
-                global_scale=0.01,
+                use_selection=False,
+                apply_scale_options="FBX_SCALE_UNITS",
+                global_scale=1,
                 path_mode="COPY",
                 embed_textures=False,
+                bake_space_transform=False,
             )
             logger.info("FBX exported: %s", file_path)
             return file_path
@@ -129,12 +139,11 @@ class JBFileExporter:
             logger.error("FBX export failed: %s", e)
             return None
 
-    def _export_alembic(self, objects: list, file_path: str) -> Optional[str]:
-        self._select_only(objects)
+    def _export_alembic(self, file_path: str) -> Optional[str]:
         try:
             bpy.ops.wm.alembic_export(
                 filepath=file_path,
-                selected=True,
+                selected=False,
                 as_background_job=False,
             )
             logger.info("Alembic exported: %s", file_path)
@@ -143,12 +152,11 @@ class JBFileExporter:
             logger.error("Alembic export failed: %s", e)
             return None
 
-    def _export_gltf(self, objects: list, file_path: str) -> Optional[str]:
-        self._select_only(objects)
+    def _export_gltf(self, file_path: str) -> Optional[str]:
         try:
             bpy.ops.export_scene.gltf(
                 filepath=file_path,
-                use_selection=True,
+                use_selection=False,
                 export_format="GLB",
             )
             logger.info("GLTF exported: %s", file_path)
@@ -156,3 +164,13 @@ class JBFileExporter:
         except Exception as e:
             logger.error("GLTF export failed: %s", e)
             return None
+
+    def _export_obj(self, file_path: str) -> Optional[str]:
+        # TODO: implement OBJ export
+        logger.warning("OBJ export not implemented yet")
+        return None
+
+    def _export_usd(self, file_path: str) -> Optional[str]:
+        # TODO: implement USD export
+        logger.warning("USD export not implemented yet")
+        return None

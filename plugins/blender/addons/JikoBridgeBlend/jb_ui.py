@@ -1,6 +1,9 @@
 import sys
 import bpy
 
+# TODO: Add better status/confirmation UI similar to C4D popup commands
+# C4D plugin uses a popup menu and explicit import/export actions.
+# Blender currently only has sidebar buttons.
 
 class JB_PT_Commands(bpy.types.Panel):
     bl_label = "Jiko Bridge"
