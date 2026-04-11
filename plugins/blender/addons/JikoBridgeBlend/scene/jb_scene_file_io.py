@@ -31,7 +31,11 @@ class JBSceneFileIO(JBSceneInstance):
     # Import
     # ------------------------------------------------------------------
 
-    def import_file(self, file_path: str) -> list:
+    def import_file(self, file_path: str) -> bool:
+        if not os.path.exists(file_path):
+            logger.error("Import file not found: %s", file_path)
+            return False
+
         ext = Path(file_path).suffix.lower()
         handler = {
             ".fbx": self._import_fbx,
@@ -46,57 +50,54 @@ class JBSceneFileIO(JBSceneInstance):
 
         if not handler:
             logger.error("Unsupported file extension: %s", ext)
-            return []
+            return False
 
         return handler(file_path)
 
-    def _get_new_objects(self, before: set) -> list:
-        return [obj for obj in bpy.context.scene.objects if obj not in before]
-
-    def _import_fbx(self, file_path: str) -> list:
-        before = set(bpy.context.scene.objects)
+    def _import_fbx(self, file_path: str) -> bool:
+        logger.debug("Importing FBX asset: %s", file_path)
         try:
-            bpy.ops.import_scene.fbx(filepath=file_path)
+            bpy.ops.import_scene.fbx(
+                filepath=file_path,
+                use_image_search=False,
+                automatic_bone_orientation=True,
+            )
         except Exception as e:
             logger.error("FBX import failed: %s", e)
-            return []
-        return self._get_new_objects(before)
+            return False
+        return True
 
-    def _import_alembic(self, file_path: str) -> list:
-        before = set(bpy.context.scene.objects)
+    def _import_alembic(self, file_path: str) -> bool:
         try:
             bpy.ops.wm.alembic_import(filepath=file_path, as_background_job=False)
         except Exception as e:
             logger.error("Alembic import failed: %s", e)
-            return []
-        return self._get_new_objects(before)
+            return False
+        return True
 
-    def _import_obj(self, file_path: str) -> list:
-        before = set(bpy.context.scene.objects)
+    def _import_obj(self, file_path: str) -> bool:
         try:
             bpy.ops.wm.obj_import(filepath=file_path)
         except Exception as e:
             logger.error("OBJ import failed: %s", e)
-            return []
-        return self._get_new_objects(before)
+            return False
+        return True
 
-    def _import_usd(self, file_path: str) -> list:
-        before = set(bpy.context.scene.objects)
+    def _import_usd(self, file_path: str) -> bool:
         try:
             bpy.ops.wm.usd_import(filepath=file_path)
         except Exception as e:
             logger.error("USD import failed: %s", e)
-            return []
-        return self._get_new_objects(before)
+            return False
+        return True
 
-    def _import_gltf(self, file_path: str) -> list:
-        before = set(bpy.context.scene.objects)
+    def _import_gltf(self, file_path: str) -> bool:
         try:
             bpy.ops.import_scene.gltf(filepath=file_path)
         except Exception as e:
             logger.error("GLTF import failed: %s", e)
-            return []
-        return self._get_new_objects(before)
+            return False
+        return True
 
     # ------------------------------------------------------------------
     # Export
@@ -107,6 +108,7 @@ class JBSceneFileIO(JBSceneInstance):
         return os.path.join(self.cache_path, filename)
 
     def export_file(self, ext: str) -> Optional[str]:
+
         file_path = self._generate_path(ext)
         handler = {
             ".fbx": self._export_fbx,

@@ -1,6 +1,8 @@
+import bpy
+
 from typing import Optional
 
-from .jb_scene_asset import JBSceneAsset
+from .jb_scene_container import JBSceneContainer
 from ..jb_logger import get_logger
 
 # TODO: Port C4D scene utilities from plugins/c4d/jb_scene_manager.py
@@ -10,20 +12,28 @@ from ..jb_logger import get_logger
 logger = get_logger(__name__)
 
 
-class JBScene(JBSceneAsset):
+class JBScene(JBSceneContainer):
     """High-level import / export operations for the active Blender scene."""
 
-    def import_file_to_container(self, file_path: str, container) -> None:
-        """Unified API: import file and place objects into collection."""
-        objects = self.import_file(file_path)
-        if not objects:
-            logger.warning("No objects imported for file: %s", file_path)
-            return
-        self.move_objects_to_container(objects, container)
+    def import_with_temp(self, file_path: str, target: bpy.types.Collection) -> None:
+        """Unified API: import file into temp scene, then copy to target collection."""
+        with self.temp_scene(debug=False) as temp:
+            if not self.import_file(file_path):
+                logger.warning("No objects imported for file: %s", file_path)
+                return
+            root_objects = self.get_top_objects(temp)
+            if not root_objects:
+                logger.warning(
+                    "No root objects found in imported scene for file: %s", file_path
+                )
+                return
+            self.copy_recursive(root_objects, target)
 
-    def export_to_temp_file(self, objects: list, ext: str) -> Optional[str]:
+    def export_with_temp(
+        self, src: bpy.types.Collection | list[bpy.types.Object], ext: str
+    ) -> Optional[str]:
         """Unified API: copy objects to isolated scene, replace instances, export."""
-        with self.isolated_container(objects) as temp:
+        with self.temp_scene(src, debug=False) as temp:
             copies = list(temp.collection.objects)
             self._replace_instances_with_placeholders(copies, temp)
             return self.export_file(ext)

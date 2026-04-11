@@ -1,79 +1,107 @@
 import bpy
-from contextlib import contextmanager
+from typing import Optional
 
-from .jb_scene_file_io import JBSceneFileIO
+from ..jb_asset_model import AssetModel
+from .jb_scene_temp import JBSceneTemp
 
 
-class JBSceneContainer(JBSceneFileIO):
-    """Scene-level operations: temporary scene contexts.
+JB_ASSETS_COLLECTION = "Assets"
+COLOR_TAG = 'COLOR_04'
 
-    TODO: Port C4D scene utilities:
-    - project_scale / geometry scale transforms
-    - make_editable_recursive (apply modifiers / convert to mesh)
-    """
+
+class JBSceneContainer(JBSceneTemp):
+    """Container and asset management: collections, metadata."""
 
     # ------------------------------------------------------------------
-    # Temporary scene contexts
+    # Root collection
     # ------------------------------------------------------------------
 
-    @contextmanager
-    def temp_container(self):
-        """Create a temporary Blender scene for export preparation.
+    def get_or_create_root_collection(self) -> bpy.types.Collection:
+        """Return or create the root JB_Assets collection."""
+        col = bpy.data.collections.get(JB_ASSETS_COLLECTION)
+        if not col:
+            col = bpy.data.collections.new(JB_ASSETS_COLLECTION)
+            bpy.context.scene.collection.children.link(col)
+            col.color_tag = COLOR_TAG
 
-        Deleted (with all its objects/meshes) on context exit.
+        return col
+
+    # ------------------------------------------------------------------
+    # Asset metadata
+    # ------------------------------------------------------------------
+
+    def _set_asset_metadata(self, col: bpy.types.Collection, asset: AssetModel) -> None:
+        col["jb_pack_name"] = asset.pack_name or ""
+        col["jb_asset_name"] = asset.asset_name or ""
+        col["jb_asset_type"] = asset.asset_type or ""
+        col["jb_database_name"] = asset.database_name or ""
+
+    # ------------------------------------------------------------------
+    # Unified API
+    # ------------------------------------------------------------------
+
+    def get_or_create_container(
+        self,
+        asset: AssetModel,
+        target: bpy.types.Collection = None,
+    ) -> tuple[bpy.types.Collection, bool]:
+        """Return (collection, existed).
+
+        Unified API — mirrors C4D get_or_create_asset_container.
+        If *target* is provided it is renamed/tagged instead of creating a new one.
         """
-        temp: bpy.types.Scene = bpy.data.scenes.new("_jb_temp_export")
-        temp.unit_settings.system = "METRIC"
-        temp.unit_settings.scale_length = 1.0
-        window = bpy.context.window_manager.windows[0]
-        view_layer = temp.view_layers[0]
-        try:
-            with bpy.context.temp_override(
-                window=window, scene=temp, view_layer=view_layer
-            ):
-                yield temp
-        finally:
-            for obj in list(temp.collection.all_objects):
+        root = self.get_or_create_root_collection()
+        name = f"Asset_{asset.pack_name}_{asset.asset_name}"
+
+        if target:
+            col = target
+            existed = col.name in bpy.data.collections
+        else:
+            col = bpy.data.collections.get(name)
+            existed = col is not None
+            if not col:
+                col = bpy.data.collections.new(name)
+
+        col.name = name
+        col.color_tag = COLOR_TAG
+        self._set_asset_metadata(col, asset)
+
+        if name not in [c.name for c in root.children]:
+            try:
+                root.children.link(col)
+            except RuntimeError:
+                pass
+
+        if len(col.objects) == 0:
+            existed = False
+
+        return col, existed
+
+    def get_asset_info(self, container) -> Optional[AssetModel]:
+        """Unified API: read AssetModel from collection custom properties."""
+        return AssetModel.from_collection(container)
+
+    def get_objects_recursive(self, container) -> list:
+        """Unified API: all objects in collection tree."""
+        return self.get_children(container)
+
+    def clear_container(self, container) -> None:
+        """Unified API: remove all objects from collection."""
+        for obj in list(container.objects):
+            container.objects.unlink(obj)
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+    def cleanup_empty_objects(self, container) -> None:
+        """Unified API: remove non-instance Empty objects from collection tree."""
+        for obj in list(container.objects):
+            if obj.type == "EMPTY" and obj.instance_type != "COLLECTION":
                 bpy.data.objects.remove(obj, do_unlink=True)
-            for mesh in [m for m in bpy.data.meshes if m.users == 0]:
-                bpy.data.meshes.remove(mesh)
-            bpy.data.scenes.remove(temp)
+        for child in container.children:
+            self.cleanup_empty_objects(child)
 
-    @contextmanager
-    def isolated_container(
-        self, objects: list[bpy.types.Object], unit_scale: float = 1.0
-    ):
-        """Create an isolated temp scene containing deep copies of *objects*."""
-        scene: bpy.types.Scene = bpy.data.scenes.new("_jb_isolated")
-        scene.unit_settings.system = "METRIC"
-        scene.unit_settings.scale_length = unit_scale
-
-        objects_set = set(objects)
-        original_to_copy: dict = {}
-
-        # Pass 1: create shallow copies and register in the temp scene.
-        for orig in objects:
-            copy = orig.copy()
-            if orig.data:
-                copy.data = orig.data.copy()
-            scene.collection.objects.link(copy)
-            original_to_copy[orig] = copy
-
-        # Pass 2: restore parent hierarchy inside the copied set.
-        for orig, copy in original_to_copy.items():
-            if orig.parent in objects_set:
-                copy.parent = original_to_copy[orig.parent]
-                copy.matrix_parent_inverse = orig.matrix_parent_inverse.copy()
-            else:
-                # Parent is outside the set — detach and bake world transform.
-                copy.parent = None
-                copy.matrix_world = orig.matrix_world.copy()
-
-        try:
-            yield scene
-        finally:
-            for obj in list(scene.collection.all_objects):
-                bpy.data.objects.remove(obj, do_unlink=True)
-            for mesh in [m for m in bpy.data.meshes if m.users == 0]:
-                bpy.data.meshes.remove(mesh)
-            bpy.data.scenes.remove(scene)
+    def move_objects_to_container(self, objects: list, container) -> None:
+        """Unified API: move objects into target collection."""
+        for obj in objects:
+            for col in list(obj.users_collection):
+                col.objects.unlink(obj)
+            container.objects.link(obj)

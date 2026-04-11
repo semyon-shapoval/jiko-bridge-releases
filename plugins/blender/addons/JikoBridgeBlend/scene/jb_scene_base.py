@@ -36,8 +36,11 @@ class JBSceneBase(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def get_selection(self) -> list:
-        """Return the currently selected objects."""
+    def get_selection(self, child: bool = False) -> list:
+        """Return the currently selected objects.
+
+        If child=True, include recursive child objects.
+        """
 
     @abstractmethod
     def get_selected_asset_containers(self) -> list:
@@ -56,7 +59,7 @@ class JBSceneBase(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def get_or_create_asset(self, asset, target=None) -> tuple:
+    def get_or_create_container(self, asset, target=None) -> tuple:
         """Return (container, existed) for the given asset."""
 
     @abstractmethod
@@ -120,11 +123,11 @@ class JBSceneBase(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def import_file_to_container(self, file_path: str, container) -> None:
+    def import_with_temp(self, file_path: str, container) -> None:
         """Import *file_path* and place resulting objects into *container*."""
 
     @abstractmethod
-    def export_to_temp_file(self, objects: list, ext: str) -> Optional[str]:
+    def export_with_temp(self, objects: list, ext: str) -> Optional[str]:
         """Export *objects* to a temporary file with the given extension.
 
         Returns the file path on success, None on failure.

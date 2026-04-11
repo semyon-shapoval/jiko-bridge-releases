@@ -13,6 +13,7 @@ DEFAULT_PORT = 5174
 
 logger = get_logger(__name__)
 
+
 def _get_port() -> int:
     system = platform.system()
     if system == "Windows":
@@ -60,7 +61,6 @@ class JB_API:
             logger.error("API request failed: %s", e)
             return None
 
-
     def _asset_from_response(self, resp: Optional[dict]) -> Optional[AssetModel]:
         data = (resp or {}).get("data")
         return AssetModel(data) if data else None
@@ -83,11 +83,26 @@ class JB_API:
         params = urllib.parse.urlencode(query)
         return self._asset_from_response(self._request(f"/api/asset?{params}"))
 
-    def create_asset(self, filepath: str) -> Optional[AssetModel]:
+    def create_asset(
+        self,
+        filepath: str,
+        pack_name: Optional[str] = None,
+        asset_name: Optional[str] = None,
+        database_name: Optional[str] = None,
+        asset_type: Optional[str] = None,
+    ) -> Optional[AssetModel]:
+        payload: dict = {"filepath": filepath}
+        if pack_name:
+            payload["pack_name"] = pack_name
+        if asset_name:
+            payload["asset_name"] = asset_name
+        if database_name:
+            payload["database_name"] = database_name
+        if asset_type:
+            payload["asset_type"] = asset_type
+
         return self._asset_from_response(
-            self._request(
-                "/api/asset/create", {"filepath": filepath}, method="POST", timeout=300
-            )
+            self._request("/api/asset/create", payload, method="POST", timeout=300)
         )
 
     def update_asset(

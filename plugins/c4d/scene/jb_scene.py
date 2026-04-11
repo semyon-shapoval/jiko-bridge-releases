@@ -3,24 +3,24 @@ from typing import Optional
 
 from jb_logger import get_logger
 
-from scene.jb_scene_asset import JBSceneAsset
+from scene.jb_scene_container import JBSceneContainer
 
 logger = get_logger(__name__)
 
 
-class JBScene(JBSceneAsset):
+class JBScene(JBSceneContainer):
     """High-level import / export operations for the active C4D scene."""
 
-    def import_file_to_container(self, file_path: str, container) -> None:
+    def import_file_with_context(self, file_path: str, target: c4d.BaseObject) -> None:
         """Unified API: import file and place objects under container."""
-        with self.temp_container() as tmp_doc:
+        with self.temp_context(debug=False) as tmp_doc:
             if not self.import_file(tmp_doc, file_path):
                 logger.warning("No objects imported for file: %s", file_path)
                 return
             self.project_scale(tmp_doc, 1)
-            self.copy_from_container(tmp_doc, self.doc, container)
+            self.copy_context(tmp_doc, self.doc, target)
 
-    def export_to_temp_file(self, objects: list, ext: str) -> Optional[str]:
+    def export_with_context(self, objects: list, ext: str) -> Optional[str]:
         """Unified API: export objects to temp file, replacing instances with placeholders."""
         for obj in objects:
             if obj.CheckType(c4d.Oinstance):
@@ -28,8 +28,8 @@ class JBScene(JBSceneAsset):
                 if linked:
                     self.copy_user_data(linked, obj)
 
-        with self.isolated_container(
-            self.doc, objects, unit_scale=c4d.DOCUMENT_UNIT_M, debug=False
+        with self.temp_context(
+            doc=self.doc, objects=objects, unit_scale=c4d.DOCUMENT_UNIT_M, debug=False
         ) as tmp_doc:
             if tmp_doc is None:
                 return None

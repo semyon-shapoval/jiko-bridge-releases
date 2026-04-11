@@ -7,7 +7,7 @@ import bpy
 from .jb_scene_base import JBSceneBase
 
 
-class JBTree(JBSceneBase):
+class JBSceneTree(JBSceneBase):
     """Traversal and querying of Blender collection/object hierarchies.
 
     Implements the traversal group of JBSceneBase.

@@ -69,7 +69,7 @@ class JB_AssetImporter:
         if exists:
             self.scene.create_instance(container, asset.asset_name)
         else:
-            self.scene.import_file_to_container(asset.asset_path, container)
+            self.scene.import_file_with_context(asset.asset_path, container)
         return container
 
     def _convert_to_instances(self, layout_container) -> None:
@@ -82,7 +82,9 @@ class JB_AssetImporter:
                 child_asset
             )
             if not exists:
-                self.scene.import_file_to_container(child_asset.asset_path, asset_container)
+                self.scene.import_file_with_context(
+                    child_asset.asset_path, asset_container
+                )
 
             instance = self.scene.create_instance(
                 asset_container, child_asset.asset_name

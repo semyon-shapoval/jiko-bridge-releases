@@ -40,7 +40,7 @@ class JB_AssetExporter:
             return
 
         ext = self._detect_ext(objects)
-        filepath = self.scene.export_to_temp_file(objects, ext)
+        filepath = self.scene.export_with_context(objects, ext)
         if not filepath:
             return
 
@@ -62,7 +62,7 @@ class JB_AssetExporter:
             return
 
         ext = self._detect_ext(objects)
-        filepath = self.scene.export_to_temp_file(objects, ext)
+        filepath = self.scene.export_with_context(objects, ext)
         if not filepath:
             logger.error("Export failed.")
             return

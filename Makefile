@@ -1,13 +1,37 @@
-BLENDER_PATH = "C:\Program Files\Blender Foundation\Blender 5.0\blender.exe"
-C4D_PATH = "C:\Program Files\Maxon Cinema 4D 2023\Cinema 4D.exe"
+# Определение ОС
+SYSTEM := $(if $(filter Windows_NT,$(OS)),Windows,$(shell uname -s))
 
-dev-win-env:
+# Подключаем нужный конфиг в зависимости от системы
+ifeq ($(SYSTEM),Windows)
+    include MakeWin.mk
+else ifeq ($(SYSTEM),Darwin)
+    -include MakeMac.mk
+else
+    -include MakeLinux.mk
+endif
+
+.PHONY: help dev-env blend-test c4d
+
+help:
+	@echo "Detected System: $(SYSTEM)"
+	@echo "Available targets:"
+	@echo "  dev-env      - Create venv and install dependencies"
+	@echo "  blend-test   - Run Blender integration tests"
+	@echo "  c4d          - Open Cinema 4D with sample file"
+
+dev-env:
 	python -m venv venv
-	venv\Scripts\python -m pip install --upgrade pip
-	venv\Scripts\pip install -r requirements.txt
+	$(PYTHON) -m pip install --upgrade pip
+	$(PIP) install -r requirements.txt
 
-blend:
-	$(BLENDER_PATH) "$(USERPROFILE)\Desktop\Untitled.blend"
+blend-help:
+	"$(BLENDER_PATH)" --help
+
+blend-test:
+	@echo "Running Blender tests..."
+	set BLENDER_USER_SCRIPTS="$(ADDONS_PATH)" && \
+	"$(BLENDER_PATH)" --addons JikoBridgeBlend --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"
 
 c4d:
-	$(C4D_PATH) "$(USERPROFILE)\Desktop\Untitled.c4d"
+	@echo "Opening C4D..."
+	"$(C4D_PATH)" "$(DESKTOP)/Untitled.c4d"

@@ -13,12 +13,12 @@ class JB_AssetExporter:
         self.api = JB_API()
         self.scene = JBScene()
 
-    def export_asset(self) -> None:
-        asset_container = self.scene.get_selected_asset_container()
+    def export_asset(self, context=None) -> None:
+        asset_container = self.scene.get_selected_asset_container(context)
         if asset_container:
             self._update_asset(asset_container)
         else:
-            self._create_new_asset(self.scene.get_selection())
+            self._create_new_asset(self.scene.get_selection(context, child=True))
 
     def _update_asset(self, container) -> None:
         asset = self.scene.get_asset_info(container)
@@ -37,7 +37,7 @@ class JB_AssetExporter:
             return
 
         ext = self._detect_ext(objects)
-        filepath = self.scene.export_to_temp_file(objects, ext)
+        filepath = self.scene.export_with_temp(container, ext)
         if not filepath:
             return
 
@@ -59,7 +59,7 @@ class JB_AssetExporter:
             return
 
         ext = self._detect_ext(objects)
-        filepath = self.scene.export_to_temp_file(objects, ext)
+        filepath = self.scene.export_with_temp(objects, ext)
         if not filepath:
             logger.error("Export failed.")
             return
@@ -69,7 +69,7 @@ class JB_AssetExporter:
             logger.error("Failed to create asset.")
             return
 
-        container, _ = self.scene.get_or_create_asset(asset)
+        container, _ = self.scene.get_or_create_container(asset)
         self.scene.move_objects_to_container(objects, container)
         logger.info("Asset '%s' created.", asset.asset_name)
 
@@ -85,5 +85,5 @@ class JB_OT_AssetExport(bpy.types.Operator):
 
     def execute(self, context):
         exporter = JB_AssetExporter()
-        exporter.export_asset()
+        exporter.export_asset(context)
         return {"FINISHED"}
