@@ -1,5 +1,6 @@
 import c4d
 import ctypes
+import os
 from ctypes import wintypes
 
 from jb_asset_importer import JB_AssetImporter
@@ -7,6 +8,7 @@ from jb_asset_exporter import JB_AssetExporter
 
 IDC_POPUP_ACTION_IMPORT = 2001
 IDC_POPUP_ACTION_EXPORT = 2002
+IDC_POPUP_ACTION_RELOAD = 2003
 
 
 class JB_CommandsPopup:
@@ -22,10 +24,18 @@ class JB_CommandsPopup:
         self.asset_import.import_assets()
         c4d.EventAdd()
 
+    def reload_modules(self):
+        from jb_utils import reload_plugin_modules
+
+        plugin_dir = os.path.abspath(os.path.dirname(__file__))
+        reload_plugin_modules(plugin_dir)
+        c4d.EventAdd()
+
     def show_popup_menu(self):
         bc = c4d.BaseContainer()
         bc.InsData(IDC_POPUP_ACTION_IMPORT, "Import Asset")
         bc.InsData(IDC_POPUP_ACTION_EXPORT, "Export Asset")
+        bc.InsData(IDC_POPUP_ACTION_RELOAD, "Reload Modules")
 
         pt = wintypes.POINT()
         ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
@@ -36,6 +46,8 @@ class JB_CommandsPopup:
             self.import_asset()
         elif res == IDC_POPUP_ACTION_EXPORT:
             self.export_asset()
+        elif res == IDC_POPUP_ACTION_RELOAD:
+            self.reload_modules()
 
 
 class JB_Commands:

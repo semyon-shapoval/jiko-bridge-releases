@@ -1,8 +1,8 @@
 import os
-import bpy
 from jb_logger import get_logger
 from jb_api import JB_API
 from scene.jb_scene import JBScene
+from jb_utils import confirm
 
 logger = get_logger(__name__)
 
@@ -27,7 +27,7 @@ class JB_AssetExporter:
             )
             return
 
-        if not self.scene.confirm(
+        if not confirm(
             f"Update asset '{assetInfo.asset_name}'?\nThis will overwrite the existing file."
         ):
             return
@@ -77,7 +77,7 @@ class JB_AssetExporter:
             logger.error("Failed to update asset '%s'.", assetInfo.asset_name)
 
     def _create_new_asset(self, objects: list) -> None:
-        if not self.scene.confirm(
+        if not confirm(
             "Create new asset from selected objects? Go to Jiko Bridge app to finish setup."
         ):
             return

@@ -10,12 +10,14 @@ plugin_dir = os.path.abspath(os.path.dirname(__file__))
 
 
 def load_arnold_module():
-    arnold_folder = os.path.join(
-        c4d.storage.GeGetC4DPath(c4d.C4D_PATH_LIBRARY), "scripts"
-    )
-    if os.path.exists(arnold_folder) and arnold_folder not in sys.path:
-        sys.path.append(arnold_folder)
-
+    try:
+        arnold_folder = os.path.join(
+            c4d.storage.GeGetC4DPath(c4d.C4D_PATH_LIBRARY), "scripts"
+        )
+        if os.path.exists(arnold_folder) and arnold_folder not in sys.path:
+            sys.path.append(arnold_folder)
+    except Exception as e:
+        print(f"Failed to load Arnold module: {e}")
 
 def load_plugin_modules():
     if plugin_dir not in sys.path:
@@ -29,22 +31,6 @@ def load_plugin_modules():
             importlib.import_module(module_name)
 
 
-def reload_plugin_modules():
-    importlib.invalidate_caches()
-    
-    plugin_modules = {
-        name: mod for name, mod in list(sys.modules.items())
-        if getattr(mod, "__file__", None) 
-        and os.path.abspath(mod.__file__).startswith(plugin_dir)
-    }
-    
-    for name in plugin_modules:
-        del sys.modules[name]
-    
-
-load_arnold_module()
-load_plugin_modules()
-
 class JIKO_Bridge(plugins.CommandData):
     @staticmethod
     def run(doc):
@@ -53,7 +39,6 @@ class JIKO_Bridge(plugins.CommandData):
         return JB_Commands(doc)
 
     def Execute(self, doc):
-        reload_plugin_modules()
         from jb_commands import JB_CommandsPopup
 
         JB_CommandsPopup().show_popup_menu()
@@ -61,16 +46,21 @@ class JIKO_Bridge(plugins.CommandData):
 
 
 def main():
-    if not plugins.FindPlugin(JIKO_BRIDGE_ID, c4d.PLUGINTYPE_COMMAND):
-        plugins.RegisterCommandPlugin(
-            id=JIKO_BRIDGE_ID,
-            str="Jiko Bridge",
-            info=0,
-            help="Jiko Bridge help to improve your workflow",
-            dat=JIKO_Bridge(),
-            icon=None,
-        )
+    load_arnold_module()
+    load_plugin_modules()
 
+    if not plugins.FindPlugin(JIKO_BRIDGE_ID, c4d.PLUGINTYPE_COMMAND):
+        try:
+            plugins.RegisterCommandPlugin(
+                id=JIKO_BRIDGE_ID,
+                str="Jiko Bridge",
+                info=0,
+                help="Jiko Bridge help to improve your workflow",
+                dat=JIKO_Bridge(),
+                icon=None,
+            )
+        except Exception as e:
+            print(f"Failed to register Jiko Bridge plugin: {e}")
 
 if __name__ == "__main__":
     main()

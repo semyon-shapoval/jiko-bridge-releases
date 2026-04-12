@@ -1,10 +1,9 @@
-import c4d
-
 from jb_logger import get_logger
 from scene.jb_scene import JBScene
 from jb_api import JB_API
 from jb_material_importer import JBMaterialImporter
 from jb_asset_model import AssetModel
+from jb_utils import confirm
 
 logger = get_logger(__name__)
 
@@ -30,7 +29,7 @@ class JB_AssetImporter:
         if not asset_containers:
             return []
 
-        if not self.scene.confirm(
+        if not confirm(
             f"Reimport existing assets?\n{len(asset_containers)} asset(s) will be reimported"
         ):
             return []

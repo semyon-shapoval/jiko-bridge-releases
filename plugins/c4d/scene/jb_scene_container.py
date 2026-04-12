@@ -3,7 +3,7 @@ from typing import Optional
 
 from jb_asset_model import AssetModel
 from scene.jb_scene_temp import JBSceneTemp
-from ..jb_types import JbContainer
+from jb_types import JbContainer
 
 
 class JBSceneContainer(JBSceneTemp):

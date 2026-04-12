@@ -18,18 +18,22 @@ class JBSceneBase(ABC):
     @abstractmethod
     def walk(self, root, fn) -> None:
         """Call *fn* for every object/node in the hierarchy rooted at *root*."""
+        pass
 
     @abstractmethod
     def get_children(self, container) -> list:
         """Return a flat list of all objects inside *container* (recursive)."""
+        pass
 
     @abstractmethod
     def get_top_objects(self, scene_or_doc) -> list:
         """Return direct top-level objects of *scene_or_doc*."""
+        pass
 
     @abstractmethod
     def get_all_objects(self, scene_or_doc) -> list:
         """Return every object in *scene_or_doc* as a flat list."""
+        pass
 
     # ------------------------------------------------------------------
     # Selection (implemented in JBSceneSelect)
@@ -38,18 +42,17 @@ class JBSceneBase(ABC):
     @abstractmethod
     def get_selection(self) -> list:
         """Return the currently selected objects."""
+        pass
 
     @abstractmethod
     def get_selected_asset_containers(self) -> list:
         """Return all selected asset containers (nulls / collections)."""
+        pass
 
     @abstractmethod
     def get_selected_asset_container(self) -> Optional[object]:
         """Return the single unambiguous selected asset container, or None."""
-
-    @abstractmethod
-    def confirm(self, message: str) -> bool:
-        """Show a DCC confirmation dialog and return the user's answer."""
+        pass
 
     # ------------------------------------------------------------------
     # Container management (implemented in JBSceneManager)
@@ -58,22 +61,27 @@ class JBSceneBase(ABC):
     @abstractmethod
     def get_or_create_asset_container(self, asset, target=None) -> tuple:
         """Return (container, existed) for the given asset."""
+        pass
 
     @abstractmethod
     def get_asset_info(self, container) -> Optional[object]:
         """Read AssetModel from a container's metadata."""
+        pass
 
     @abstractmethod
     def get_objects_recursive(self, container) -> list:
         """Return all objects inside *container* (recursive)."""
+        pass
 
     @abstractmethod
     def clear_container(self, container) -> None:
         """Remove all children/objects from a container."""
+        pass
 
     @abstractmethod
     def cleanup_empty_objects(self, container) -> None:
         """Remove empty placeholder objects from the container tree."""
+        pass
 
     # ------------------------------------------------------------------
     # Object management (implemented in JBSceneManager)
@@ -82,10 +90,12 @@ class JBSceneBase(ABC):
     @abstractmethod
     def move_objects_to_container(self, objects: list, container) -> None:
         """Move *objects* into *container*."""
+        pass
 
     @abstractmethod
     def has_instances(self, objects: list) -> bool:
         """Return True if any object in *objects* is an instance reference."""
+        pass
 
     # ------------------------------------------------------------------
     # Instance management (implemented in JBSceneManager)
@@ -94,14 +104,17 @@ class JBSceneBase(ABC):
     @abstractmethod
     def create_instance(self, asset_container, name: str) -> object:
         """Create a DCC instance (Empty / Oinstance) referencing *asset_container*."""
+        pass
 
     @abstractmethod
     def set_instance_transform(self, instance, matrix) -> None:
         """Apply a world-space transform matrix to *instance*."""
+        pass
 
     @abstractmethod
     def add_instance_to_container(self, instance, container) -> None:
         """Parent *instance* under *container*."""
+        pass
 
     # ------------------------------------------------------------------
     # Placeholder extraction (implemented in JBSceneManager)
@@ -114,6 +127,7 @@ class JBSceneBase(ABC):
         Each dict has keys: ``pack_name``, ``asset_name``, ``matrix``.
         Placeholder objects are removed from *container* during extraction.
         """
+        pass
 
     # ------------------------------------------------------------------
     # File I/O (implemented in JBSceneManager)
@@ -122,6 +136,7 @@ class JBSceneBase(ABC):
     @abstractmethod
     def import_with_temp(self, file_path: str, container) -> None:
         """Import *file_path* and place resulting objects into *container*."""
+        pass
 
     @abstractmethod
     def export_with_temp(self, objects: list, ext: str) -> Optional[str]:
@@ -130,3 +145,4 @@ class JBSceneBase(ABC):
         Returns the file path on success, None on failure.
         Instances are replaced with mesh placeholders before export.
         """
+        pass
