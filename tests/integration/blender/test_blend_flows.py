@@ -1,30 +1,23 @@
 import os
 import sys
 import uuid
-import logging
 import unittest
 from typing import Optional
 from unittest.mock import patch
 
 import bpy
 
-sys.path.append(os.path.dirname(__file__))
-from api_helper import make_injected_active_asset, make_injected_create_asset
-from scene_helper import BlenderSceneHelper
+__package__ = "integration.blender"
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="[Test Jiko] %(levelname)s: %(message)s",
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 )
 
-log = logging.getLogger(__name__)
+from ..helpers.api_helper import make_injected_active_asset, make_injected_create_asset
+from ..helpers.logger import get_logger
+from .scene_helper import BlenderSceneHelper
 
-
-def reset_blender_scene():
-    log.info("Resetting Blender to factory settings for test.")
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    assert bpy.context.scene is not None
-
+log = get_logger(__name__)
 
 class TestBlenderJikoBridge(unittest.TestCase):
     @property
@@ -33,10 +26,9 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
     def setUp(self) -> None:
         log.info("Setting up Blender Jiko Bridge integration test.")
-        reset_blender_scene()
         self.scene = BlenderSceneHelper()
+        self.scene.reset_scene()
 
-        self.scene.ensure_addon_enabled()
         self.assertIn(self.scene.ADDON_NAME, bpy.context.preferences.addons)
         log.info("Addon '%s' is enabled in Blender preferences.", self.scene.ADDON_NAME)
 
@@ -157,7 +149,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
         )
         return instances, get_active_asset_patch
 
-    def test_asset_export_operator_updates_asset_when_container_selected(self) -> None:
+    def test_full_flow(self) -> None:
         # Stage 1: Export new geometry asset
         parent = self.scene.create_scene_object("ExportParent")
         self.scene.create_scene_object("ExportChild", parent=parent)
@@ -219,4 +211,4 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(argv=["test_blend_importer"], exit=False)
+    unittest.main(argv=["test_blend_importer"], exit=True)

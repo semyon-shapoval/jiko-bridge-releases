@@ -49,10 +49,17 @@ class JBSceneInstance(JBSceneSelect):
         result = []
         for obj in self.get_children(container):
             info = None
-            for t in obj.GetTags():
-                info = AssetModel.from_placeholder_name(t.GetName())
-                if info:
-                    break
+            for tag in obj.GetTags():
+                if tag.CheckType(c4d.Ttexture):
+                    material = (
+                        tag[c4d.TEXTURETAG_MATERIAL]
+                        if tag.GetType() == c4d.Ttexture
+                        else None
+                    )
+                    if material:
+                        info = AssetModel.from_placeholder_name(material.GetName())
+                        if info:
+                            break
             if not info:
                 continue
             result.append(
@@ -69,28 +76,51 @@ class JBSceneInstance(JBSceneSelect):
     # Internal — placeholder creation / instance replacement
     # ------------------------------------------------------------------
 
-    def _replace_instances_with_placeholders(self, root) -> None:
-        if root is None:
+    def _replace_instances_with_placeholders(
+        self, doc: c4d.documents.BaseDocument, objects: list[c4d.BaseObject]
+    ) -> None:
+        if not objects:
             return
-        for instance in self.get_children(root):
-            if not instance.CheckType(c4d.Oinstance):
+
+        for obj in objects:
+            if not obj.CheckType(c4d.Oinstance):
                 continue
-            info = AssetModel.from_c4d_object(instance)
+            info = AssetModel.from_c4d_object(obj)
             if not info or not info.pack_name or not info.asset_name:
                 continue
-            placeholder = self._create_placeholder(info.pack_name, info.asset_name)
-            placeholder.SetMg(instance.GetMg())
-            placeholder.InsertBefore(instance)
-            instance.Remove()
+            placeholder = self._create_placeholder(doc, info.pack_name, info.asset_name)
+            placeholder.SetMg(obj.GetMg())
+            placeholder.InsertBefore(obj)
+            obj.Remove()
 
-    def _create_placeholder(self, pack_name: str, asset_name: str):
+    def _create_placeholder(
+        self,
+        doc: c4d.documents.BaseDocument,
+        pack_name: str,
+        asset_name: str,
+    ):
+        material_type = getattr(c4d, "Mmaterial", None)
+        material = (
+            c4d.BaseMaterial(material_type)
+            if material_type is not None
+            else c4d.BaseMaterial()
+        )
+        material.SetName(f"{pack_name}__{asset_name}")
+        doc.InsertMaterial(material)
+
         obj = c4d.BaseObject(c4d.Oplane)
         obj.SetName(f"{pack_name}__{asset_name}")
         obj[c4d.PRIM_PLANE_WIDTH] = 100
         obj[c4d.PRIM_PLANE_HEIGHT] = 100
         obj[c4d.PRIM_PLANE_SUBW] = 1
         obj[c4d.PRIM_PLANE_SUBH] = 1
-        tag = obj.MakeTag(c4d.Tpolygonselection)
-        tag.SetName(f"{pack_name}__{asset_name}")
-        tag.GetBaseSelect().SelectAll(1)
+
+        tag = obj.MakeTag(c4d.Ttexture)
+        if tag is not None:
+            try:
+                tag[c4d.TEXTURETAG_MATERIAL] = material
+            except Exception:
+                # Fallback for older/newer C4D API variants.
+                if hasattr(tag, "SetMaterial"):
+                    tag.SetMaterial(material)
         return obj

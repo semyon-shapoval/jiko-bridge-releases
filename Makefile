@@ -10,28 +10,29 @@ else
     -include MakeLinux.mk
 endif
 
-.PHONY: help dev-env blend-test c4d
+.PHONY: help venv blend-test c4d-test
 
 help:
 	@echo "Detected System: $(SYSTEM)"
 	@echo "Available targets:"
-	@echo "  dev-env      - Create venv and install dependencies"
-	@echo "  blend-test   - Run Blender integration tests"
-	@echo "  c4d          - Open Cinema 4D with sample file"
+	@echo "  venv           - Create venv and install dependencies"
+	@echo "  blend-test     - Run Blender integration tests"
+	@echo "  c4d-test       - Run Cinema 4D integration tests via c4dpy"
 
-dev-env:
+venv:
 	python -m venv venv
 	$(PYTHON) -m pip install --upgrade pip
 	$(PIP) install -r requirements.txt
-
-blend-help:
-	"$(BLENDER_PATH)" --help
 
 blend-test:
 	@echo "Running Blender tests..."
 	set BLENDER_USER_SCRIPTS="$(ADDONS_PATH)" && \
 	"$(BLENDER_PATH)" --addons JikoBridgeBlend --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"
 
-c4d:
-	@echo "Opening C4D..."
-	"$(C4D_PATH)" "$(DESKTOP)/Untitled.c4d"
+c4d-test:
+	@echo "Running C4D tests..."
+	set "g_additionalModulePath=$(C4D_PLUGIN_PATH)" && \
+	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
+
+c4d-build:
+	$(VENV_ACTIVATE) && stickytape ./plugins/c4d/JikoBridgeC4d.pyp --add-python-path . --output-file dist/JikoBridgeC4d_packed.pyp

@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 class JBScene(JBSceneContainer):
     """High-level import / export operations for the active C4D scene."""
 
-    def import_file_with_context(self, file_path: str, target: c4d.BaseObject) -> None:
+    def import_with_temp(self, file_path: str, target: c4d.BaseObject) -> None:
         """Unified API: import file and place objects under container."""
         with self.temp_context(debug=False) as tmp_doc:
             if not self.import_file(tmp_doc, file_path):
@@ -20,7 +20,7 @@ class JBScene(JBSceneContainer):
             self.project_scale(tmp_doc, 1)
             self.copy_context(tmp_doc, self.doc, target)
 
-    def export_with_context(self, objects: list, ext: str) -> Optional[str]:
+    def export_with_temp(self, objects: list, ext: str) -> Optional[str]:
         """Unified API: export objects to temp file, replacing instances with placeholders."""
         for obj in objects:
             if obj.CheckType(c4d.Oinstance):
@@ -33,7 +33,9 @@ class JBScene(JBSceneContainer):
         ) as tmp_doc:
             if tmp_doc is None:
                 return None
-            self._replace_instances_with_placeholders(tmp_doc.GetFirstObject())
+            self._replace_instances_with_placeholders(
+                tmp_doc, self.get_all_objects(tmp_doc)
+            )
             tmp_doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
             self.make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
             self.project_scale(tmp_doc, 0.01)

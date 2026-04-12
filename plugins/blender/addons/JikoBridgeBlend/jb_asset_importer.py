@@ -55,11 +55,9 @@ class JB_AssetImporter:
 
     def _import_single(self, asset: AssetModel) -> None:
         match asset.bridge_type:
-            case "layout":
+            case "model":
                 layout_container = self._create_model(asset)
                 self._convert_to_instances(layout_container)
-            case "model":
-                self._create_model(asset)
             case "material":
                 self.material_importer.import_material(asset)
             case _:

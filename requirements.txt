@@ -1,1 +1,2 @@
+stickytape
 fake-bpy-module-latest

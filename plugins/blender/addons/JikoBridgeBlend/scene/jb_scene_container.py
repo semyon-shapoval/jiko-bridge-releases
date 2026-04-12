@@ -3,10 +3,11 @@ from typing import Optional
 
 from ..jb_asset_model import AssetModel
 from .jb_scene_temp import JBSceneTemp
+from ..jb_types import JbContainer
 
 
 JB_ASSETS_COLLECTION = "Assets"
-COLOR_TAG = 'COLOR_04'
+COLOR_TAG = "COLOR_04"
 
 
 class JBSceneContainer(JBSceneTemp):
@@ -16,7 +17,7 @@ class JBSceneContainer(JBSceneTemp):
     # Root collection
     # ------------------------------------------------------------------
 
-    def get_or_create_root_collection(self) -> bpy.types.Collection:
+    def get_or_create_root_collection(self) -> JbContainer:
         """Return or create the root JB_Assets collection."""
         col = bpy.data.collections.get(JB_ASSETS_COLLECTION)
         if not col:
@@ -30,7 +31,7 @@ class JBSceneContainer(JBSceneTemp):
     # Asset metadata
     # ------------------------------------------------------------------
 
-    def _set_asset_metadata(self, col: bpy.types.Collection, asset: AssetModel) -> None:
+    def _set_asset_metadata(self, col: JbContainer, asset: AssetModel) -> None:
         col["jb_pack_name"] = asset.pack_name or ""
         col["jb_asset_name"] = asset.asset_name or ""
         col["jb_asset_type"] = asset.asset_type or ""
@@ -43,8 +44,8 @@ class JBSceneContainer(JBSceneTemp):
     def get_or_create_container(
         self,
         asset: AssetModel,
-        target: bpy.types.Collection = None,
-    ) -> tuple[bpy.types.Collection, bool]:
+        target: JbContainer = None,
+    ) -> tuple[JbContainer, bool]:
         """Return (collection, existed).
 
         Unified API — mirrors C4D get_or_create_asset_container.
@@ -77,21 +78,21 @@ class JBSceneContainer(JBSceneTemp):
 
         return col, existed
 
-    def get_asset_info(self, container) -> Optional[AssetModel]:
+    def get_asset_info(self, container: JbContainer) -> Optional[AssetModel]:
         """Unified API: read AssetModel from collection custom properties."""
         return AssetModel.from_collection(container)
 
-    def get_objects_recursive(self, container) -> list:
+    def get_objects_recursive(self, container: JbContainer) -> list:
         """Unified API: all objects in collection tree."""
         return self.get_children(container)
 
-    def clear_container(self, container) -> None:
+    def clear_container(self, container: JbContainer) -> None:
         """Unified API: remove all objects from collection."""
         for obj in list(container.objects):
             container.objects.unlink(obj)
             bpy.data.objects.remove(obj, do_unlink=True)
 
-    def cleanup_empty_objects(self, container) -> None:
+    def cleanup_empty_objects(self, container: JbContainer) -> None:
         """Unified API: remove non-instance Empty objects from collection tree."""
         for obj in list(container.objects):
             if obj.type == "EMPTY" and obj.instance_type != "COLLECTION":
@@ -99,7 +100,7 @@ class JBSceneContainer(JBSceneTemp):
         for child in container.children:
             self.cleanup_empty_objects(child)
 
-    def move_objects_to_container(self, objects: list, container) -> None:
+    def move_objects_to_container(self, objects: list, container: JbContainer) -> None:
         """Unified API: move objects into target collection."""
         for obj in objects:
             for col in list(obj.users_collection):

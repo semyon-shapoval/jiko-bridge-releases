@@ -30,7 +30,9 @@ class JBScene(JBSceneContainer):
             self.copy_recursive(root_objects, target)
 
     def export_with_temp(
-        self, src: bpy.types.Collection | list[bpy.types.Object], ext: str
+        self,
+        src: bpy.types.Collection | list[bpy.types.Object],
+        ext: str,
     ) -> Optional[str]:
         """Unified API: copy objects to isolated scene, replace instances, export."""
         with self.temp_scene(src, debug=False) as temp:

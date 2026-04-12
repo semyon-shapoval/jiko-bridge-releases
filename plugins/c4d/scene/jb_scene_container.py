@@ -2,10 +2,11 @@ import c4d
 from typing import Optional
 
 from jb_asset_model import AssetModel
-from scene.jb_scene_context import JBSceneContext
+from scene.jb_scene_temp import JBSceneTemp
+from ..jb_types import JbContainer
 
 
-class JBSceneContainer(JBSceneContext):
+class JBSceneContainer(JBSceneTemp):
     """Container and asset management: null objects, user data, collections."""
 
     # ------------------------------------------------------------------
@@ -16,8 +17,8 @@ class JBSceneContainer(JBSceneContext):
         self,
         doc: c4d.documents.BaseDocument,
         name: str,
-        target: c4d.BaseObject = None,
-    ) -> tuple[c4d.BaseObject, bool]:
+        target: JbContainer = None,
+    ) -> tuple[JbContainer, bool]:
         """Ищет или создаёт Null-объект с заданным именем и иконкой."""
         obj = target or doc.SearchObject(name)
         existed = obj is not None
@@ -39,8 +40,8 @@ class JBSceneContainer(JBSceneContext):
         self,
         doc: c4d.documents.BaseDocument,
         asset: AssetModel,
-        target: c4d.BaseObject = None,
-    ) -> tuple[c4d.BaseObject, bool]:
+        target: JbContainer = None,
+    ) -> tuple[JbContainer, bool]:
         root_null, _ = self.get_or_create_null(doc, "Assets")
 
         asset_null, asset_existed = self.get_or_create_null(
@@ -63,7 +64,7 @@ class JBSceneContainer(JBSceneContext):
     # User data
     # ------------------------------------------------------------------
 
-    def set_user_data(self, obj: c4d.BaseObject, name: str, value: str) -> None:
+    def set_user_data(self, obj: JbContainer, name: str, value: str) -> None:
         for key, bc in obj.GetUserDataContainer():
             if bc[c4d.DESC_NAME] == name:
                 obj[key] = value
@@ -78,13 +79,13 @@ class JBSceneContainer(JBSceneContext):
         if element:
             obj[element] = value
 
-    def copy_user_data(self, src: c4d.BaseObject, dst: c4d.BaseObject) -> None:
+    def copy_user_data(self, src: JbContainer, dst: JbContainer) -> None:
         for key, bc in src.GetUserDataContainer():
             name = bc[c4d.DESC_NAME]
             value = src[key]
             self.set_user_data(dst, name, value)
 
-    def remove_empty_nulls(self, parent: c4d.BaseObject) -> None:
+    def remove_empty_nulls(self, parent: JbContainer) -> None:
         """Удаляет пустые Null-объекты внутри parent."""
         for obj in parent.GetChildren():
             if (
@@ -97,28 +98,30 @@ class JBSceneContainer(JBSceneContext):
     # Unified API
     # ------------------------------------------------------------------
 
-    def get_or_create_asset_container(self, asset: AssetModel, target=None) -> tuple:
+    def get_or_create_asset_container(
+        self, asset: AssetModel, target: JbContainer = None
+    ) -> tuple[JbContainer, bool]:
         """Unified API: wraps get_or_create_asset using internal doc property."""
         return self.get_or_create_container(self.doc, asset, target)
 
-    def get_asset_info(self, container) -> Optional[AssetModel]:
+    def get_asset_info(self, container: JbContainer) -> Optional[AssetModel]:
         """Unified API: reads AssetModel from a C4D null's user data."""
         return AssetModel.from_c4d_object(container)
 
-    def get_objects_recursive(self, container) -> list:
+    def get_objects_recursive(self, container: JbContainer) -> list:
         """Unified API: direct children of asset null (isolated_doc handles depth)."""
         return container.GetChildren()
 
-    def clear_container(self, container) -> None:
+    def clear_container(self, container: JbContainer) -> None:
         """Unified API: remove all children from asset null."""
         for child in container.GetChildren():
             child.Remove()
 
-    def cleanup_empty_objects(self, container) -> None:
+    def cleanup_empty_objects(self, container: JbContainer) -> None:
         """Unified API: alias for remove_empty_nulls."""
         self.remove_empty_nulls(container)
 
-    def move_objects_to_container(self, objects: list, container) -> None:
+    def move_objects_to_container(self, objects: list, container: JbContainer) -> None:
         """Unified API: re-parents objects under asset null."""
         for obj in objects:
             obj.Remove()

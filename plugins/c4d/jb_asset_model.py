@@ -101,8 +101,9 @@ class AssetModel:
     @classmethod
     def from_placeholder_name(cls, name: str) -> Optional[dict]:
         """Parse pack_name / asset_name from a placeholder object/tag name."""
+        normalized = re.sub(r"\.\d+$", "", name)
         for pattern in _PLACEHOLDER_PATTERNS:
-            m = pattern.match(name)
+            m = pattern.match(normalized)
             if m:
                 return {"pack_name": m.group("pack"), "asset_name": m.group("asset")}
         return None

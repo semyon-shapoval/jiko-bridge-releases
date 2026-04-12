@@ -25,10 +25,20 @@ def make_injected_create_asset(
 ) -> tuple[dict[str, Any], Callable[..., Any]]:
     payload_capture: dict[str, Any] = {}
 
-    def injected_create_asset(api_self, filepath: str, *args, **kwargs) -> Any:
+    def injected_create_asset(*args, **kwargs) -> Any:
+        if len(args) >= 2:
+            filepath = args[1]
+        elif len(args) == 1:
+            filepath = args[0] if isinstance(args[0], str) else kwargs.get("filepath")
+        else:
+            filepath = kwargs.get("filepath")
+
+        if filepath is None:
+            raise TypeError("create_asset was called without a filepath")
+
         kwargs.update(payload)
         payload_capture["payload"] = dict(filepath=filepath, **payload)
-        return original_create_asset(api_self, filepath, *args, **kwargs)
+        return original_create_asset(*args, **kwargs)
 
     return payload_capture, injected_create_asset
 
@@ -38,7 +48,7 @@ def make_injected_active_asset(
     host: str = "localhost",
     port: int = 5174,
 ) -> Callable[..., Any]:
-    def injected_active_asset(api_self) -> SimpleNamespace | None:
+    def injected_active_asset(*_args, **_kwargs) -> SimpleNamespace | None:
         query = {k: v for k, v in payload.items() if v is not None}
         data = http_request("/api/asset", query, host=host, port=port)
         if not data or data.get("data") is None:

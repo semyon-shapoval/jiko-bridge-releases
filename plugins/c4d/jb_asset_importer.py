@@ -54,11 +54,9 @@ class JB_AssetImporter:
 
     def _import_single(self, asset: AssetModel) -> None:
         match asset.bridge_type:
-            case "layout":
+            case "model":
                 layout_container = self._create_model(asset)
                 self._convert_to_instances(layout_container)
-            case "model":
-                self._create_model(asset)
             case "material":
                 self.material_importer.import_material(asset)
             case _:
@@ -69,7 +67,7 @@ class JB_AssetImporter:
         if exists:
             self.scene.create_instance(container, asset.asset_name)
         else:
-            self.scene.import_file_with_context(asset.asset_path, container)
+            self.scene.import_with_temp(asset.asset_path, container)
         return container
 
     def _convert_to_instances(self, layout_container) -> None:
@@ -82,9 +80,7 @@ class JB_AssetImporter:
                 child_asset
             )
             if not exists:
-                self.scene.import_file_with_context(
-                    child_asset.asset_path, asset_container
-                )
+                self.scene.import_with_temp(child_asset.asset_path, asset_container)
 
             instance = self.scene.create_instance(
                 asset_container, child_asset.asset_name

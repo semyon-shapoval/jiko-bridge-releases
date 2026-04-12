@@ -36,3 +36,15 @@ class JB_CommandsPopup:
             self.import_asset()
         elif res == IDC_POPUP_ACTION_EXPORT:
             self.export_asset()
+
+
+class JB_Commands:
+    def __init__(self, doc: c4d.documents.BaseDocument):
+        self.doc = doc
+        self._commands = JB_CommandsPopup()
+
+    def export_asset(self) -> None:
+        self._commands.export_asset()
+
+    def import_asset(self) -> None:
+        self._commands.import_asset()

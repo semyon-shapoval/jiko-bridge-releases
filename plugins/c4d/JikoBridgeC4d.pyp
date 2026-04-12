@@ -1,11 +1,10 @@
-import c4d
-from c4d import plugins
-import sys
 import os
+import sys
+import c4d
 import importlib
+from c4d import plugins
 
 JIKO_BRIDGE_ID = 1096086
-
 
 plugin_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -21,6 +20,13 @@ def load_arnold_module():
 def load_plugin_modules():
     if plugin_dir not in sys.path:
         sys.path.insert(0, plugin_dir)
+
+    modules = ["jb_commands", "jb_api"]
+    for module_name in modules:
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+        else:
+            importlib.import_module(module_name)
 
 
 def reload_plugin_modules():
@@ -40,9 +46,15 @@ load_arnold_module()
 load_plugin_modules()
 
 class JIKO_Bridge(plugins.CommandData):
+    @staticmethod
+    def run(doc):
+        from jb_commands import JB_Commands
+
+        return JB_Commands(doc)
+
     def Execute(self, doc):
         reload_plugin_modules()
-        from jb_ui import JB_CommandsPopup
+        from jb_commands import JB_CommandsPopup
 
         JB_CommandsPopup().show_popup_menu()
         return True

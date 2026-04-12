@@ -85,11 +85,17 @@ class AssetModel:
             }
         )
 
+    @staticmethod
+    def _normalize_placeholder_name(name: str) -> str:
+        """Strip Blender auto-number suffixes like .001 from placeholder names."""
+        return re.sub(r"\.\d{3,}$", "", name)
+
     @classmethod
     def from_placeholder_name(cls, name: str) -> Optional[dict]:
         """Parse pack_name / asset_name from a placeholder object/material name."""
+        normalized = cls._normalize_placeholder_name(name)
         for pattern in _PLACEHOLDER_PATTERNS:
-            m = pattern.match(name)
+            m = pattern.match(normalized)
             if m:
                 return {"pack_name": m.group("pack"), "asset_name": m.group("asset")}
         return None

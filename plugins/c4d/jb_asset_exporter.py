@@ -1,5 +1,5 @@
-import c4d
-
+import os
+import bpy
 from jb_logger import get_logger
 from jb_api import JB_API
 from scene.jb_scene import JBScene
@@ -20,15 +20,15 @@ class JB_AssetExporter:
             self._create_new_asset(self.scene.get_selection())
 
     def _update_asset(self, container) -> None:
-        asset = self.scene.get_asset_info(container)
-        if not asset:
+        assetInfo = self.scene.get_asset_info(container)
+        if not assetInfo:
             logger.error(
                 "Invalid asset information on container: %s", container.GetName()
             )
             return
 
         if not self.scene.confirm(
-            f"Update asset '{asset.asset_name}'?\nThis will overwrite the existing file."
+            f"Update asset '{assetInfo.asset_name}'?\nThis will overwrite the existing file."
         ):
             return
 
@@ -39,8 +39,29 @@ class JB_AssetExporter:
             )
             return
 
-        ext = self._detect_ext(objects)
-        filepath = self.scene.export_with_context(objects, ext)
+        asset = self.api.get_asset(
+            assetInfo.pack_name,
+            assetInfo.asset_name,
+            assetInfo.database_name,
+            assetInfo.asset_type,
+        )
+        if not asset or not asset.asset_path:
+            logger.error(
+                "Unable to determine export extension: missing asset_path for '%s'.",
+                assetInfo.asset_name,
+            )
+            return
+
+        ext = os.path.splitext(asset.asset_path)[1]
+        if not ext:
+            logger.error(
+                "Unable to determine export extension from asset_path '%s' for '%s'.",
+                asset.asset_path,
+                assetInfo.asset_name,
+            )
+            return
+
+        filepath = self.scene.export_with_temp(objects, ext)
         if not filepath:
             return
 
@@ -51,9 +72,9 @@ class JB_AssetExporter:
             asset.asset_type,
             asset.database_name,
         ):
-            logger.info("Asset '%s' updated successfully.", asset.asset_name)
+            logger.info("Asset '%s' updated successfully.", assetInfo.asset_name)
         else:
-            logger.error("Failed to update asset '%s'.", asset.asset_name)
+            logger.error("Failed to update asset '%s'.", assetInfo.asset_name)
 
     def _create_new_asset(self, objects: list) -> None:
         if not self.scene.confirm(
@@ -61,8 +82,7 @@ class JB_AssetExporter:
         ):
             return
 
-        ext = self._detect_ext(objects)
-        filepath = self.scene.export_with_context(objects, ext)
+        filepath = self.scene.export_with_temp(objects, ".fbx")
         if not filepath:
             logger.error("Export failed.")
             return
@@ -75,6 +95,3 @@ class JB_AssetExporter:
         container, _ = self.scene.get_or_create_asset_container(asset)
         self.scene.move_objects_to_container(objects, container)
         logger.info("Asset '%s' created.", asset.asset_name)
-
-    def _detect_ext(self, objects: list) -> str:
-        return ".abc" if self.scene.has_instances(objects) else ".fbx"

@@ -1,3 +1,5 @@
+import os
+
 import bpy
 
 from .jb_api import JB_API
@@ -21,13 +23,13 @@ class JB_AssetExporter:
             self._create_new_asset(self.scene.get_selection(context, child=True))
 
     def _update_asset(self, container) -> None:
-        asset = self.scene.get_asset_info(container)
-        if not asset:
+        assetInfo = self.scene.get_asset_info(container)
+        if not assetInfo:
             logger.error("Invalid asset information on container: %s", container.name)
             return
 
         if not self.scene.confirm(
-            f"Update asset '{asset.asset_name}'?\nThis will overwrite the existing file."
+            f"Update asset '{assetInfo.asset_name}'?\nThis will overwrite the existing file."
         ):
             return
 
@@ -36,7 +38,28 @@ class JB_AssetExporter:
             logger.error("Container '%s' has no objects for export.", container.name)
             return
 
-        ext = self._detect_ext(objects)
+        asset = self.api.get_asset(
+            assetInfo.pack_name,
+            assetInfo.asset_name,
+            assetInfo.database_name,
+            assetInfo.asset_type,
+        )
+        if not asset or not asset.asset_path:
+            logger.error(
+                "Unable to determine export extension: missing asset_path for '%s'.",
+                assetInfo.asset_name,
+            )
+            return
+
+        ext = os.path.splitext(asset.asset_path)[1]
+        if not ext:
+            logger.error(
+                "Unable to determine export extension from asset_path '%s' for '%s'.",
+                asset.asset_path,
+                assetInfo.asset_name,
+            )
+            return
+
         filepath = self.scene.export_with_temp(container, ext)
         if not filepath:
             return
@@ -58,8 +81,7 @@ class JB_AssetExporter:
         ):
             return
 
-        ext = self._detect_ext(objects)
-        filepath = self.scene.export_with_temp(objects, ext)
+        filepath = self.scene.export_with_temp(objects, ".fbx")
         if not filepath:
             logger.error("Export failed.")
             return
@@ -72,9 +94,6 @@ class JB_AssetExporter:
         container, _ = self.scene.get_or_create_container(asset)
         self.scene.move_objects_to_container(objects, container)
         logger.info("Asset '%s' created.", asset.asset_name)
-
-    def _detect_ext(self, objects: list) -> str:
-        return ".abc" if self.scene.has_instances(objects) else ".fbx"
 
 
 class JB_OT_AssetExport(bpy.types.Operator):

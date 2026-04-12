@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from scene.jb_scene_file_io import JBSceneFileIO
 
 
-class JBSceneContext(JBSceneFileIO):
+class JBSceneTemp(JBSceneFileIO):
     """Scene-level operations: document helpers, geometry transforms."""
 
     # ------------------------------------------------------------------
