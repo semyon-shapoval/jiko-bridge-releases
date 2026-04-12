@@ -18,7 +18,7 @@ bl_info = {
     "tracker_url": "https://t.me/withjiko",
 }
 
-from .jb_ui import JB_PT_Commands, JB_OT_Reload
+from .jb_commands import JB_PT_Commands, JB_OT_Reload
 from .jb_asset_importer import JB_OT_AssetImport
 from .jb_asset_exporter import JB_OT_AssetExport
 
