@@ -17,4 +17,3 @@ DESKTOP      := $(USERPROFILE)\Desktop
 # Путь к папке с аддонами проекта
 ADDONS_PATH  := $(CURDIR)/plugins/blender
 C4D_PLUGIN_PATH := $(CURDIR)/plugins/c4d
-C4D_DIST   := $(CURDIR)/dist/c4d

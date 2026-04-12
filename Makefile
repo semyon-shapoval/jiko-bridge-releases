@@ -31,12 +31,5 @@ blend-test:
 
 c4d-test:
 	@echo "Running C4D tests..."
-	make c4d-build
-	set "g_additionalModulePath=$(C4D_DIST)" && \
+	set "g_additionalModulePath=$(C4D_PLUGIN_PATH)" && \
 	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
-
-c4d-build:
-	if not exist dist mkdir dist
-	python ./utils/bundle.py \
-		--entry ./plugins/c4d/JikoBridgeC4d.pyp \
-		--out   ./dist/c4d/JikoBridgeC4d.pyp
