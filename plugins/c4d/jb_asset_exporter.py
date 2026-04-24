@@ -1,8 +1,10 @@
 import os
-from jb_logger import get_logger
+
 from jb_api import JB_API
-from scene.jb_scene import JBScene
 from jb_utils import confirm
+from jb_logger import get_logger
+from scene.jb_scene import JBScene
+from jb_asset_model import AssetInfo
 
 logger = get_logger(__name__)
 
@@ -20,7 +22,7 @@ class JB_AssetExporter:
             self._create_new_asset(self.scene.get_selection())
 
     def _update_asset(self, container) -> None:
-        assetInfo = self.scene.get_asset_info(container)
+        assetInfo = AssetInfo.get_asset_info(container)
         if not assetInfo:
             logger.error(
                 "Invalid asset information on container: %s", container.GetName()
@@ -43,20 +45,29 @@ class JB_AssetExporter:
             assetInfo.pack_name,
             assetInfo.asset_name,
             assetInfo.database_name,
-            assetInfo.asset_type,
+            [assetInfo.asset_type],
         )
-        if not asset or not asset.asset_path:
-            logger.error(
-                "Unable to determine export extension: missing asset_path for '%s'.",
-                assetInfo.asset_name,
-            )
+        if not asset or not asset.files:
+            logger.error("Failed to fetch asset '%s'.", assetInfo.asset_name)
             return
 
-        ext = os.path.splitext(asset.asset_path)[1]
+        model_file = next(
+            (
+                f
+                for f in asset.files
+                if f.bridge_type == "model" and f.asset_type == assetInfo.asset_type
+            ),
+            None,
+        )
+        if not model_file:
+            logger.error("No model file found for asset '%s'.", assetInfo.asset_name)
+            return
+
+        ext = os.path.splitext(model_file.file_path)[1]
         if not ext:
             logger.error(
-                "Unable to determine export extension from asset_path '%s' for '%s'.",
-                asset.asset_path,
+                "Unable to determine export extension from file_path '%s' for '%s'.",
+                model_file.file_path,
                 assetInfo.asset_name,
             )
             return
@@ -69,7 +80,7 @@ class JB_AssetExporter:
             filepath,
             asset.pack_name,
             asset.asset_name,
-            asset.asset_type,
+            model_file.asset_type,
             asset.database_name,
         ):
             logger.info("Asset '%s' updated successfully.", assetInfo.asset_name)

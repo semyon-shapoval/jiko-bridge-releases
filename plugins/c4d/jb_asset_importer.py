@@ -1,9 +1,8 @@
-from jb_logger import get_logger
-from scene.jb_scene import JBScene
 from jb_api import JB_API
-from jb_material_importer import JBMaterialImporter
-from jb_asset_model import AssetModel
+from jb_logger import get_logger
 from jb_utils import confirm
+from scene.jb_scene import JBScene
+from jb_asset_model import AssetInfo, AssetModel, AssetFile
 
 logger = get_logger(__name__)
 
@@ -12,7 +11,6 @@ class JB_AssetImporter:
     def __init__(self):
         self.api = JB_API()
         self.scene = JBScene()
-        self.material_importer = JBMaterialImporter()
 
     def import_assets(self) -> None:
         assets = self._collect_assets_for_reimport() or self._collect_active_asset()
@@ -37,11 +35,14 @@ class JB_AssetImporter:
         assets = []
         for container in asset_containers:
             self.scene.clear_container(container)
-            info = self.scene.get_asset_info(container)
-            if not info:
+            assetInfo = AssetInfo.get_asset_info(container)
+            if not assetInfo:
                 continue
             asset = self.api.get_asset(
-                info.pack_name, info.asset_name, info.database_name, info.asset_type
+                assetInfo.pack_name,
+                assetInfo.asset_name,
+                assetInfo.database_name,
+                [assetInfo.asset_type],
             )
             if asset:
                 assets.append(asset)
@@ -52,21 +53,24 @@ class JB_AssetImporter:
         return [asset] if asset else []
 
     def _import_single(self, asset: AssetModel) -> None:
-        match asset.bridge_type:
-            case "model":
-                layout_container = self._create_model(asset)
-                self._convert_to_instances(layout_container)
-            case "material":
-                self.material_importer.import_material(asset)
-            case _:
-                logger.warning("Unsupported bridge type: %s", asset.bridge_type)
+        for file in asset.files:
+            match file.bridge_type:
+                case "model":
+                    layout_container = self._create_model(asset, file)
+                    self._convert_to_instances(layout_container)
+                case "material":
+                    self.scene.import_material(asset, file)
+                case _:
+                    logger.warning("Unsupported bridge type: %s", file.bridge_type)
 
-    def _create_model(self, asset: AssetModel):
-        container, exists = self.scene.get_or_create_asset_container(asset)
+    def _create_model(self, asset: AssetModel, file: AssetFile):
+        container, exists = self.scene.get_or_create_asset_container(
+            asset, file
+        )
         if exists:
             self.scene.create_instance(container, asset.asset_name)
         else:
-            self.scene.import_with_temp(asset.asset_path, container)
+            self.scene.import_with_temp(file.file_path, container)
         return container
 
     def _convert_to_instances(self, layout_container) -> None:
@@ -79,7 +83,11 @@ class JB_AssetImporter:
                 child_asset
             )
             if not exists:
-                self.scene.import_with_temp(child_asset.asset_path, asset_container)
+                model_file = next(
+                    (f for f in child_asset.files if f.bridge_type == "model"), None
+                )
+                if model_file:
+                    self.scene.import_with_temp(model_file.file_path, asset_container)
 
             instance = self.scene.create_instance(
                 asset_container, child_asset.asset_name

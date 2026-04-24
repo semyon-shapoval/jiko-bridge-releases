@@ -53,6 +53,9 @@ class JBSceneInstance(JBSceneSelect):
     def extract_placeholders(self, container) -> list:
         result = []
         for obj in list(container.objects):
+            if obj.type != "MESH" or not obj.data or len(obj.data.vertices) != 4:
+                continue
+
             pack = obj.get("jb_placeholder_pack")
             asset = obj.get("jb_placeholder_asset")
 

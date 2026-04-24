@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import c4d
 
 from jb_logger import get_logger
 
-from jb_asset_model import AssetModel
+from jb_asset_model import AssetInfo
 from scene.jb_scene_select import JBSceneSelect
 
 logger = get_logger(__name__)
@@ -48,6 +46,11 @@ class JBSceneInstance(JBSceneSelect):
     def extract_placeholders(self, container) -> list:
         result = []
         for obj in self.get_children(container):
+            if not obj.IsInstanceOf(c4d.Opolygon):
+                continue
+            if obj.GetPointCount() != 4:
+                continue
+
             info = None
             for tag in obj.GetTags():
                 if tag.CheckType(c4d.Ttexture):
@@ -57,15 +60,15 @@ class JBSceneInstance(JBSceneSelect):
                         else None
                     )
                     if material:
-                        info = AssetModel.from_placeholder_name(material.GetName())
+                        info = AssetInfo.from_placeholder_name(material.GetName())
                         if info:
                             break
             if not info:
                 continue
             result.append(
                 {
-                    "pack_name": info["pack_name"],
-                    "asset_name": info["asset_name"],
+                    "pack_name": info.pack_name,
+                    "asset_name": info.asset_name,
                     "matrix": obj.GetMg(),
                 }
             )
@@ -85,8 +88,8 @@ class JBSceneInstance(JBSceneSelect):
         for obj in objects:
             if not obj.CheckType(c4d.Oinstance):
                 continue
-            info = AssetModel.from_c4d_object(obj)
-            if not info or not info.pack_name or not info.asset_name:
+            info = AssetInfo.get_asset_info(obj)
+            if not info:
                 continue
             placeholder = self._create_placeholder(doc, info.pack_name, info.asset_name)
             placeholder.SetMg(obj.GetMg())

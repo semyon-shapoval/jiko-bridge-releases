@@ -3,7 +3,7 @@ from typing import Optional
 
 from jb_logger import get_logger
 
-from jb_asset_model import AssetModel
+from jb_asset_model import AssetInfo
 from scene.jb_scene_tree import JBTree
 
 logger = get_logger(__name__)
@@ -16,10 +16,6 @@ class JBSceneSelect(JBTree):
     group of JBSceneBase.
     """
 
-    @property
-    def doc(self) -> c4d.documents.BaseDocument:
-        return c4d.documents.GetActiveDocument()
-
     def get_selection(self) -> list:
         """Return the currently selected objects."""
         return self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
@@ -29,7 +25,7 @@ class JBSceneSelect(JBTree):
         return [
             obj
             for obj in self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
-            if obj.CheckType(c4d.Onull) and AssetModel.from_c4d_object(obj)
+            if obj.CheckType(c4d.Onull) and AssetInfo.get_asset_info(obj)
         ]
 
     def get_selected_asset_container(self) -> Optional[c4d.BaseObject]:
@@ -38,7 +34,7 @@ class JBSceneSelect(JBTree):
         if (
             len(selected) == 1
             and selected[0].CheckType(c4d.Onull)
-            and AssetModel.from_c4d_object(selected[0])
+            and AssetInfo.get_asset_info(selected[0])
         ):
             return selected[0]
         return None

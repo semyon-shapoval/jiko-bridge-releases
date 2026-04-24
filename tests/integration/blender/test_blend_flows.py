@@ -33,7 +33,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
         log.info("Addon '%s' is enabled in Blender preferences.", self.scene.ADDON_NAME)
 
         self.payload_1 = {
-            "database_name": "Database1",
+            "database_name": "test-local",
             "pack_name": "test",
             "asset_name": f"test_{self.suffix}",
             "asset_type": "model",
@@ -43,7 +43,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
         )
 
         self.payload_2 = {
-            "database_name": "Database1",
+            "database_name": "test-local",
             "pack_name": "test",
             "asset_name": f"test_{self.suffix}",
             "asset_type": "model",

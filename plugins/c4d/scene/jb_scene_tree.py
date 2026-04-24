@@ -15,6 +15,10 @@ class JBTree(JBSceneBase):
     no document management, no user data.
     """
 
+    @property
+    def doc(self) -> c4d.documents.BaseDocument:
+        return c4d.documents.GetActiveDocument()
+
     def walk(
         self,
         obj: c4d.BaseObject | list[c4d.BaseObject] | None,

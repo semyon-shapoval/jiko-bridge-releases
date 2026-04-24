@@ -2,13 +2,12 @@ import c4d
 from typing import Optional
 
 from jb_logger import get_logger
-
-from scene.jb_scene_container import JBSceneContainer
+from scene.jb_material_importer import JBMaterialImporter
 
 logger = get_logger(__name__)
 
 
-class JBScene(JBSceneContainer):
+class JBScene(JBMaterialImporter):
     """High-level import / export operations for the active C4D scene."""
 
     def import_with_temp(self, file_path: str, target: c4d.BaseObject) -> None:

@@ -64,11 +64,6 @@ class JBSceneBase(ABC):
         pass
 
     @abstractmethod
-    def get_asset_info(self, container) -> Optional[object]:
-        """Read AssetModel from a container's metadata."""
-        pass
-
-    @abstractmethod
     def get_objects_recursive(self, container) -> list:
         """Return all objects inside *container* (recursive)."""
         pass

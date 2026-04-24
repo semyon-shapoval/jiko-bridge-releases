@@ -1,11 +1,12 @@
+import os
+import json
+import platform
 import urllib.request
 import urllib.parse
-import json
-import os
-import platform
-from typing import Optional
-from jb_asset_model import AssetModel
+from typing import List, Optional
+
 from jb_logger import get_logger
+from jb_asset_model import AssetModel, AssetExportFile
 
 
 DEFAULT_PORT = 5174
@@ -63,8 +64,10 @@ class JB_API:
             return None
 
     def _asset_from_response(self, resp: Optional[dict]) -> Optional[AssetModel]:
-        data = (resp or {}).get("data")
-        return AssetModel(data) if data else None
+        payload = (resp or {}).get("data")
+        if not payload:
+            return None
+        return AssetModel(payload)
 
     def get_active_asset(self) -> Optional[AssetModel]:
         return self._asset_from_response(self._request("/api/asset/active"))
@@ -74,14 +77,16 @@ class JB_API:
         pack_name: str,
         asset_name: str,
         database_name: Optional[str] = None,
-        asset_type: Optional[str] = None,
+        asset_types: Optional[List[str]] = None,
     ) -> Optional[AssetModel]:
         query: dict = {"pack_name": pack_name, "asset_name": asset_name}
         if database_name:
             query["database_name"] = database_name
-        if asset_type:
-            query["asset_type"] = asset_type
         params = urllib.parse.urlencode(query)
+        if asset_types:
+            params += "&" + urllib.parse.urlencode(
+                [("asset_type", t) for t in asset_types]
+            )
         return self._asset_from_response(self._request(f"/api/asset?{params}"))
 
     def create_asset(
@@ -108,17 +113,15 @@ class JB_API:
 
     def update_asset(
         self,
-        filepath: str,
         pack_name: str,
         asset_name: str,
-        asset_type: str,
         database_name: Optional[str] = None,
+        files: Optional[List[AssetExportFile]] = None,
     ) -> Optional[dict]:
         payload: dict = {
-            "filepath": filepath,
             "pack_name": pack_name,
             "asset_name": asset_name,
-            "asset_type": asset_type,
+            "files": files
         }
         if database_name:
             payload["database_name"] = database_name

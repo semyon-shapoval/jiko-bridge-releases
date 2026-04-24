@@ -31,7 +31,7 @@ class TestC4DJikoBridge(unittest.TestCase):
         self.commands = self._get_loaded_commands()
 
         self.payload_1 = {
-            "database_name": "Database1",
+            "database_name": "test-local",
             "pack_name": "test",
             "asset_name": f"test_{self.suffix}",
             "asset_type": "model",
@@ -41,7 +41,7 @@ class TestC4DJikoBridge(unittest.TestCase):
         )
 
         self.payload_2 = {
-            "database_name": "Database1",
+            "database_name": "test-local",
             "pack_name": "test",
             "asset_name": f"test_{self.suffix}",
             "asset_type": "model",
