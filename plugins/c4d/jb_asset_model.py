@@ -11,86 +11,130 @@ _PLACEHOLDER_PATTERNS = [
     re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$"),
 ]
 
-
 class AssetInfo:
-    pack_name: str
-    asset_name: str
-    asset_type: Optional[str]
-    database_name: Optional[str]
+    packName: str
+    assetName: str
+    assetType: Optional[str]
+    databaseName: Optional[str]
+
+    def __init__(
+        self,
+        packName: str,
+        assetName: str,
+        assetType: Optional[str] = None,
+        databaseName: Optional[str] = None,
+    ):
+        self.packName = packName
+        self.assetName = assetName
+        self.assetType = assetType
+        self.databaseName = databaseName
 
     @classmethod
     def from_placeholder_name(cls, name: str):
-        """Parse pack_name / asset_name from a placeholder object/tag name."""
+        """Parse packName / assetName from a placeholder object/tag name."""
         normalized = re.sub(r"\.\d+$", "", name)
         for pattern in _PLACEHOLDER_PATTERNS:
             m = pattern.match(normalized)
             if m:
                 return AssetInfo(
-                    pack_name=m.group("pack"),
-                    asset_name=m.group("asset"),
-                    asset_type=None,
-                    database_name=None,
+                    packName=m.group("pack"),
+                    assetName=m.group("asset"),
+                    assetType=None,
+                    databaseName=None,
                 )
         return None
 
     @staticmethod
     def get_asset_info(obj: c4d.BaseObject):
-        """Reads pack_name, asset_name, asset_type, database_name from object user data."""
-        pack_name = asset_name = asset_type = database_name = None
+        """Reads packName, assetName, assetType, databaseName from object user data."""
+        packName = assetName = assetType = databaseName = None
 
         for key, bc in obj.GetUserDataContainer() or []:
             bc_name = bc[c4d.DESC_NAME]
-            if bc_name == "pack_name":
-                pack_name = obj[key]
-            elif bc_name == "asset_name":
-                asset_name = obj[key]
-            elif bc_name == "asset_type":
-                asset_type = obj[key] or None
-            elif bc_name == "database_name":
-                database_name = obj[key] or None
+            if bc_name == "packName":
+                packName = obj[key]
+            elif bc_name == "assetName":
+                assetName = obj[key]
+            elif bc_name == "assetType":
+                assetType = obj[key] or None
+            elif bc_name == "databaseName":
+                databaseName = obj[key] or None
 
-        if not (pack_name and asset_name):
+        if not (packName and assetName):
             return None
 
         return AssetInfo(
-            pack_name=pack_name,
-            asset_name=asset_name,
-            asset_type=asset_type,
-            database_name=database_name,
+            packName,
+            assetName,
+            assetType,
+            databaseName,
         )
 
 
 class AssetFile:
-    def __init__(self, data: dict):
-        self.file_path: str = data.get("filePath", "")
-        self.asset_type: str = data.get("assetType", "")
-        self.bridge_type: str = data.get("bridgeType", "")
+    filepath: Optional[str]
+    assetType: Optional[str]
+    bridgeType: Optional[str]
 
-    def __repr__(self):
-        return f"AssetFile({self.__dict__})"
+    def __init__(
+        self,
+        filepath: Optional[str] = None,
+        assetType: Optional[str] = None,
+        bridgeType: Optional[str] = None,
+    ):
+        self.filepath = filepath
+        self.assetType = assetType
+        self.bridgeType = bridgeType
 
-class AssetExportFile:
-    def __init__(self, file_path: str, asset_type: str):
-        self.file_path = file_path
-        self.asset_type = asset_type
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            filepath=data.get("filepath", None),
+            assetType=data.get("assetType", None),
+            bridgeType=data.get("bridgeType", None),
+        )
+    
+    def to_dict(self) -> dict:
+        result = {}
+        if self.filepath:
+            result["filepath"] = self.filepath
+        if self.assetType:
+            result["assetType"] = self.assetType
+        if self.bridgeType:
+            result["bridgeType"] = self.bridgeType
+
+        return result
+
+class AssetModel:
+    databaseName: Optional[str]
+    packName: Optional[str]
+    assetName: Optional[str]
+    files: List[AssetFile]
+
+    def __init__(self, 
+        databaseName: Optional[str] = None,
+        packName: Optional[str] = None,
+        assetName: Optional[str] = None,
+        files: Optional[List[AssetFile]] = None,
+        ):
+        self.databaseName = databaseName
+        self.packName = packName
+        self.assetName = assetName
+        self.files = files or []
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(
+            databaseName=data.get("databaseName"),
+            packName=data.get("packName"),
+            assetName=data.get("assetName"),
+            files=[AssetFile.from_dict(f) for f in data.get("files", [])]
+        )
 
     def to_dict(self) -> dict:
         return {
-            "filePath": self.file_path,
-            "assetType": self.asset_type,
+            "databaseName": self.databaseName,
+            "packName": self.packName,
+            "assetName": self.assetName,
+            "files": [f.to_dict() for f in self.files],
         }
-
-class AssetModel:
-    database_name: Optional[str]
-    pack_name: Optional[str]
-    asset_name: Optional[str]
-    files: List[AssetFile]
-
-    def __init__(self, data: dict):
-        self.database_name = data.get("database_name")
-        self.pack_name = data.get("pack_name")
-        self.asset_name = data.get("asset_name")
-        self.files = [AssetFile(f) for f in data.get("files", [])]
-
-    def __repr__(self):
-        return f"AssetModel({self.__dict__})"

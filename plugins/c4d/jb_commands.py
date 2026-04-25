@@ -1,7 +1,5 @@
 import c4d
-import ctypes
 import os
-from ctypes import wintypes
 
 from jb_asset_importer import JB_AssetImporter
 from jb_asset_exporter import JB_AssetExporter
@@ -12,17 +10,30 @@ IDC_POPUP_ACTION_RELOAD = 2003
 
 
 class JB_CommandsPopup:
+    """
+    icon reference: https://developers.maxon.net/docs/py/2024_3_0/modules/c4d.bitmaps/RESOURCEIMAGE.html
+    """
     def __init__(self):
         self.asset_import = JB_AssetImporter()
         self.asset_export = JB_AssetExporter()
 
     def export_asset(self):
-        self.asset_export.export_asset()
-        c4d.EventAdd()
+        doc = c4d.documents.GetActiveDocument()
+        doc.StartUndo()
+        try:
+            self.asset_export.export_asset()
+        finally:
+            doc.EndUndo()
+            c4d.EventAdd()
 
     def import_asset(self):
-        self.asset_import.import_assets()
-        c4d.EventAdd()
+        doc = c4d.documents.GetActiveDocument()
+        doc.StartUndo()
+        try:
+            self.asset_import.import_assets()
+        finally:
+            doc.EndUndo()
+            c4d.EventAdd()
 
     def reload_modules(self):
         from jb_utils import reload_plugin_modules
@@ -33,15 +44,12 @@ class JB_CommandsPopup:
 
     def show_popup_menu(self):
         bc = c4d.BaseContainer()
-        bc.InsData(IDC_POPUP_ACTION_IMPORT, "Import Asset")
-        bc.InsData(IDC_POPUP_ACTION_EXPORT, "Export Asset")
-        bc.InsData(IDC_POPUP_ACTION_RELOAD, "Reload Modules")
+        bc.InsData(IDC_POPUP_ACTION_IMPORT, f"Import&i{c4d.ID_MODELING_FLATTEN_TOOL}&")
+        bc.InsData(IDC_POPUP_ACTION_EXPORT, f"Export&i{c4d.RESOURCEIMAGE_EYEACTIVE}&")
+        bc.InsData(IDC_POPUP_ACTION_RELOAD, f"Reload&i{c4d.ID_MODELING_ROTATE}&")
 
-        pt = wintypes.POINT()
-        ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-        mouse_x, mouse_y = int(pt.x), int(pt.y)
+        res = c4d.gui.ShowPopupDialog(cd=None, bc=bc, x=c4d.MOUSEPOS, y=c4d.MOUSEPOS)
 
-        res = c4d.gui.ShowPopupDialog(cd=None, bc=bc, x=mouse_x, y=mouse_y)
         if res == IDC_POPUP_ACTION_IMPORT:
             self.import_asset()
         elif res == IDC_POPUP_ACTION_EXPORT:

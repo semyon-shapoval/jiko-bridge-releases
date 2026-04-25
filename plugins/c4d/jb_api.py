@@ -1,12 +1,12 @@
-import os
 import json
+import os
 import platform
+import urllib.error
 import urllib.request
-import urllib.parse
 from typing import List, Optional
 
 from jb_logger import get_logger
-from jb_asset_model import AssetModel, AssetExportFile
+from jb_asset_model import AssetFile, AssetModel
 
 
 DEFAULT_PORT = 5174
@@ -59,53 +59,61 @@ class JB_API:
                 pretty = json.dumps(parsed, indent=2, ensure_ascii=False)
                 logger.debug("API response: %s %s\n%s", method, endpoint, pretty)
                 return parsed
+        except urllib.error.HTTPError as e:
+            logger.error("JB_API HTTP error: %s %s", e.code, e.reason)
+            return None
         except Exception as e:
-            logger.exception(f"JB_API error: {e}")
+            logger.exception("JB_API error: %s", e)
             return None
 
     def _asset_from_response(self, resp: Optional[dict]) -> Optional[AssetModel]:
         payload = (resp or {}).get("data")
         if not payload:
             return None
-        return AssetModel(payload)
+        return AssetModel.from_dict(payload)
 
     def get_active_asset(self) -> Optional[AssetModel]:
         return self._asset_from_response(self._request("/api/asset/active"))
 
     def get_asset(
         self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str] = None,
-        asset_types: Optional[List[str]] = None,
+        packName: str,
+        assetName: str,
+        databaseName: Optional[str] = None,
+        files: Optional[List[AssetFile]] = None,
     ) -> Optional[AssetModel]:
-        query: dict = {"pack_name": pack_name, "asset_name": asset_name}
-        if database_name:
-            query["database_name"] = database_name
-        params = urllib.parse.urlencode(query)
-        if asset_types:
-            params += "&" + urllib.parse.urlencode(
-                [("asset_type", t) for t in asset_types]
-            )
-        return self._asset_from_response(self._request(f"/api/asset?{params}"))
+        payload: dict = {"packName": packName, "assetName": assetName}
+        if databaseName:
+            payload["databaseName"] = databaseName
+        if files:
+            payload["files"] = [file.to_dict() for file in files]
+        return self._asset_from_response(
+            self._request("/api/asset", payload, method="POST")
+        )
+
+    def get_asset_by_search(
+        self,
+        searchKey: str
+    ) -> Optional[AssetModel]:
+        payload: dict = {"searchKey": searchKey}
+        return self._asset_from_response(
+            self._request("/api/asset", payload, method="POST")
+        )
 
     def create_asset(
         self,
-        filepath: str,
-        pack_name: Optional[str] = None,
-        asset_name: Optional[str] = None,
-        database_name: Optional[str] = None,
-        asset_type: Optional[str] = None,
+        files: List[AssetFile],
+        packName: Optional[str] = None,
+        assetName: Optional[str] = None,
+        databaseName: Optional[str] = None,
     ) -> Optional[AssetModel]:
-        payload: dict = {"filepath": filepath}
-        if pack_name:
-            payload["pack_name"] = pack_name
-        if asset_name:
-            payload["asset_name"] = asset_name
-        if database_name:
-            payload["database_name"] = database_name
-        if asset_type:
-            payload["asset_type"] = asset_type
+        payload: dict = {"files": [file.to_dict() for file in files]}
+        if packName:
+            payload["packName"] = packName
+        if assetName:
+            payload["assetName"] = assetName
+        if databaseName:
+            payload["databaseName"] = databaseName
 
         return self._asset_from_response(
             self._request("/api/asset/create", payload, method="POST", timeout=300)
@@ -113,16 +121,14 @@ class JB_API:
 
     def update_asset(
         self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str] = None,
-        files: Optional[List[AssetExportFile]] = None,
+        packName: str,
+        assetName: str,
+        databaseName: Optional[str] = None,
+        files: Optional[List[AssetFile]] = None,
     ) -> Optional[dict]:
-        payload: dict = {
-            "pack_name": pack_name,
-            "asset_name": asset_name,
-            "files": files
-        }
-        if database_name:
-            payload["database_name"] = database_name
+        payload: dict = {"packName": packName, "assetName": assetName}
+        if files is not None:
+            payload["files"] = [file.to_dict() for file in files]
+        if databaseName:
+            payload["databaseName"] = databaseName
         return self._request("/api/asset/update", payload, method="POST")

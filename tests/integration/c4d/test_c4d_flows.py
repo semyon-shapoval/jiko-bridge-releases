@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from ..helpers.logger import get_logger
 from .scene_helper import C4DSceneHelper
 from ..helpers.api_helper import make_injected_active_asset, make_injected_create_asset
+from ..helpers.asset_helper import create_dummy_texture, create_material_direct
 
 log = get_logger(__name__)
 
@@ -31,24 +32,31 @@ class TestC4DJikoBridge(unittest.TestCase):
         self.commands = self._get_loaded_commands()
 
         self.payload_1 = {
-            "database_name": "test-local",
-            "pack_name": "test",
-            "asset_name": f"test_{self.suffix}",
-            "asset_type": "model",
+            "databaseName": "test-local",
+            "packName": "test",
+            "assetName": f"test_{self.suffix}",
+            "files": [{"assetType": "model"}],
         }
         self.collection_name_1 = (
-            f"Asset_{self.payload_1['pack_name']}_{self.payload_1['asset_name']}"
+            f"Asset_{self.payload_1['packName']}_{self.payload_1['assetName']}"
         )
 
         self.payload_2 = {
-            "database_name": "test-local",
-            "pack_name": "test",
-            "asset_name": f"test_{self.suffix}",
-            "asset_type": "model",
+            "databaseName": "test-local",
+            "packName": "test",
+            "assetName": f"test_{self.suffix}",
+            "files": [{"assetType": "model"}],
         }
         self.collection_name_2 = (
-            f"Asset_{self.payload_2['pack_name']}_{self.payload_2['asset_name']}"
+            f"Asset_{self.payload_2['packName']}_{self.payload_2['assetName']}"
         )
+
+        self.payload_3 = {
+            "databaseName": "test-local",
+            "packName": "test",
+            "assetName": f"test_{self.suffix}",
+            "files": [{"assetType": "basecolor"}],
+        }
 
     def _assert_plugin_loaded(self) -> None:
         plugin = c4d.plugins.FindPlugin(self.JIKO_BRIDGE_ID, c4d.PLUGINTYPE_COMMAND)
@@ -217,6 +225,48 @@ class TestC4DJikoBridge(unittest.TestCase):
             self.scene.find_object_by_name(self.collection_name_1),
             "Linked payload1 asset should also be imported after payload2 import",
         )
+
+        # Material import flow
+        texture_path = create_dummy_texture(f"dummy_{self.payload_3['assetName']}.png")
+        self.assertTrue(os.path.exists(texture_path), "Dummy texture file must exist")
+
+        asset = create_material_direct(self.payload_3, texture_path)
+        self.assertIsNotNone(asset, "Asset should be created in Jiko Bridge")
+
+        material = self.import_material_asset(self.payload_3)
+        self.assertIsNotNone(
+            material,
+            f"Material '{self.payload_3['assetName']}' should exist after import",
+        )
+
+        mesh = self.scene.create_scene_object("MaterialTestMesh")
+        tag = self.scene.apply_material_to_object(mesh, material)
+        self.assertIsNotNone(tag, "Texture tag should be created on the mesh")
+
+        material = self.reimport_material_asset(self.payload_3)
+        self.assertIsNotNone(material, "Material must still exist after reimport")
+
+        texture_result = self.scene.get_material_texture_path(material)
+        self.assertIsNotNone(
+            texture_result,
+            "Material color channel should have a bitmap shader after reimport",
+        )
+        self.assertTrue(
+            texture_result, "Bitmap shader filename must not be empty after reimport"
+        )
+        log.info("Texture path after reimport: %s", texture_result)
+
+    def import_material_asset(self, payload: dict):
+        asset_import_api = self.commands._commands.asset_import.api
+        with patch.object(
+            asset_import_api,
+            "get_active_asset",
+            side_effect=make_injected_active_asset(payload),
+        ):
+            self.commands.import_asset()
+        material = self.scene.find_material_by_name(payload["assetName"])
+        log.info("Material imported: %s", material.GetName() if material else None)
+        return material
 
 
 if __name__ == "__main__":

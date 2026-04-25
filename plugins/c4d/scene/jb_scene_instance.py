@@ -67,8 +67,8 @@ class JBSceneInstance(JBSceneSelect):
                 continue
             result.append(
                 {
-                    "pack_name": info.pack_name,
-                    "asset_name": info.asset_name,
+                    "packName": info.packName,
+                    "assetName": info.assetName,
                     "matrix": obj.GetMg(),
                 }
             )
@@ -91,7 +91,7 @@ class JBSceneInstance(JBSceneSelect):
             info = AssetInfo.get_asset_info(obj)
             if not info:
                 continue
-            placeholder = self._create_placeholder(doc, info.pack_name, info.asset_name)
+            placeholder = self._create_placeholder(doc, info.packName, info.assetName)
             placeholder.SetMg(obj.GetMg())
             placeholder.InsertBefore(obj)
             obj.Remove()
@@ -99,8 +99,8 @@ class JBSceneInstance(JBSceneSelect):
     def _create_placeholder(
         self,
         doc: c4d.documents.BaseDocument,
-        pack_name: str,
-        asset_name: str,
+        packName: str,
+        assetName: str,
     ):
         material_type = getattr(c4d, "Mmaterial", None)
         material = (
@@ -108,11 +108,11 @@ class JBSceneInstance(JBSceneSelect):
             if material_type is not None
             else c4d.BaseMaterial()
         )
-        material.SetName(f"{pack_name}__{asset_name}")
+        material.SetName(f"{packName}__{assetName}")
         doc.InsertMaterial(material)
 
         obj = c4d.BaseObject(c4d.Oplane)
-        obj.SetName(f"{pack_name}__{asset_name}")
+        obj.SetName(f"{packName}__{assetName}")
         obj[c4d.PRIM_PLANE_WIDTH] = 100
         obj[c4d.PRIM_PLANE_HEIGHT] = 100
         obj[c4d.PRIM_PLANE_SUBW] = 1

@@ -10,6 +10,25 @@ logger = get_logger(__name__)
 class JBScene(JBMaterialImporter):
     """High-level import / export operations for the active C4D scene."""
 
+    def get_materials_from_objects(
+        self, objects: list[c4d.BaseObject]
+    ) -> list[c4d.BaseMaterial]:
+        materials = []
+
+        for obj in objects:
+            if not obj.IsInstanceOf(c4d.Opolygon):
+                continue
+
+            for tag in obj.GetTags():
+                if not tag.CheckType(c4d.Ttexture):
+                    continue
+
+                material = tag[c4d.TEXTURETAG_MATERIAL]
+                if material:
+                    materials.append(material)
+
+        return materials
+
     def import_with_temp(self, file_path: str, target: c4d.BaseObject) -> None:
         """Unified API: import file and place objects under container."""
         with self.temp_context(debug=False) as tmp_doc:

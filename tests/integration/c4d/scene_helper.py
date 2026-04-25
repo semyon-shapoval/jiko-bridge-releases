@@ -102,6 +102,33 @@ class C4DSceneHelper:
 
         return path
 
+    def find_material_by_name(self, name: str) -> Optional[c4d.BaseMaterial]:
+        mat = self.doc.GetFirstMaterial()
+        while mat:
+            if mat.GetName() == name:
+                return mat
+            mat = mat.GetNext()
+        return None
+
+    def apply_material_to_object(
+        self, obj: c4d.BaseObject, material: c4d.BaseMaterial
+    ) -> c4d.BaseTag:
+        tag = c4d.BaseTag(c4d.Ttexture)
+        tag[c4d.TEXTURETAG_MATERIAL] = material
+        obj.InsertTag(tag)
+        c4d.EventAdd()
+        return tag
+
+    def get_material_texture_path(
+        self,
+        material: c4d.BaseMaterial,
+        channel: int = c4d.MATERIAL_COLOR_SHADER,
+    ) -> Optional[str]:
+        shader = material[channel]
+        if shader is None:
+            return None
+        return shader[c4d.BITMAPSHADER_FILENAME]
+
     def reset_scene(self) -> None:
         current = c4d.documents.GetActiveDocument()
         if current is not None:

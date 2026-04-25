@@ -13,7 +13,12 @@ class JB_AssetImporter:
         self.scene = JBScene()
 
     def import_assets(self) -> None:
-        assets = self._collect_assets_for_reimport() or self._collect_active_asset()
+        objects = self.scene.get_selection()
+        assets = (
+            self._collect_materials_from_meshes(objects)
+            or self._collect_assets_for_reimport(objects)
+            or self._collect_active_asset(objects)
+        )
 
         if not assets:
             logger.warning("No active asset found in selection or database.")
@@ -22,8 +27,9 @@ class JB_AssetImporter:
         for asset in assets:
             self._import_single(asset)
 
-    def _collect_assets_for_reimport(self) -> list:
-        asset_containers = self.scene.get_selected_asset_containers()
+    def _collect_assets_for_reimport(self, objects: list) -> list:
+
+        asset_containers = self.scene.filter_container_from_objects(objects)
         if not asset_containers:
             return []
 
@@ -39,43 +45,84 @@ class JB_AssetImporter:
             if not assetInfo:
                 continue
             asset = self.api.get_asset(
-                assetInfo.pack_name,
-                assetInfo.asset_name,
-                assetInfo.database_name,
-                [assetInfo.asset_type],
+                assetInfo.packName,
+                assetInfo.assetName,
+                assetInfo.databaseName,
+                [AssetFile(assetType=assetInfo.assetType)],
             )
             if asset:
                 assets.append(asset)
         return assets
 
-    def _collect_active_asset(self) -> list:
+    def _collect_active_asset(self, objects: list) -> list:
+        if objects:
+            return []
+
         asset = self.api.get_active_asset()
         return [asset] if asset else []
 
+    def _collect_materials_from_meshes(self, objects: list) -> list:
+        materials = self.scene.get_materials_from_objects(objects)
+        if not materials:
+            return []
+
+        assets: list[AssetModel] = []
+        seen: set[tuple[str, str, str | None]] = set()
+
+        for material in materials:
+            matName = material.GetName()
+            asset_info = AssetInfo.from_placeholder_name(matName)
+            asset = None
+
+            if asset_info is not None:
+                key = (
+                    asset_info.packName,
+                    asset_info.assetName,
+                    asset_info.databaseName,
+                )
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                asset = self.api.get_asset(
+                    asset_info.packName,
+                    asset_info.assetName,
+                    asset_info.databaseName,
+                )
+            else:
+                asset = self.api.get_asset_by_search(matName)
+
+            if asset:
+                assets.append(asset)
+                material.SetName(f"{asset.packName}__{asset.assetName}")
+
+        if assets:
+            logger.info("Found %d material asset(s) on selected meshes", len(assets))
+
+        return assets
+
     def _import_single(self, asset: AssetModel) -> None:
         for file in asset.files:
-            match file.bridge_type:
+            match file.bridgeType:
                 case "model":
                     layout_container = self._create_model(asset, file)
                     self._convert_to_instances(layout_container)
                 case "material":
                     self.scene.import_material(asset, file)
                 case _:
-                    logger.warning("Unsupported bridge type: %s", file.bridge_type)
+                    logger.warning("Unsupported bridge type: %s", file.bridgeType)
 
     def _create_model(self, asset: AssetModel, file: AssetFile):
-        container, exists = self.scene.get_or_create_asset_container(
-            asset, file
-        )
+        container, exists = self.scene.get_or_create_asset_container(asset, file)
         if exists:
-            self.scene.create_instance(container, asset.asset_name)
+            self.scene.create_instance(container, asset.assetName)
         else:
-            self.scene.import_with_temp(file.file_path, container)
+            self.scene.import_with_temp(file.filepath, container)
         return container
 
     def _convert_to_instances(self, layout_container) -> None:
         for p in self.scene.extract_placeholders(layout_container):
-            child_asset = self.api.get_asset(p["pack_name"], p["asset_name"])
+            child_asset = self.api.get_asset(p["packName"], p["assetName"])
             if not child_asset:
                 continue
 
@@ -84,13 +131,13 @@ class JB_AssetImporter:
             )
             if not exists:
                 model_file = next(
-                    (f for f in child_asset.files if f.bridge_type == "model"), None
+                    (f for f in child_asset.files if f.bridgeType == "model"), None
                 )
                 if model_file:
-                    self.scene.import_with_temp(model_file.file_path, asset_container)
+                    self.scene.import_with_temp(model_file.filepath, asset_container)
 
             instance = self.scene.create_instance(
-                asset_container, child_asset.asset_name
+                asset_container, child_asset.assetName
             )
             self.scene.set_instance_transform(instance, p["matrix"])
             self.scene.add_instance_to_container(instance, layout_container)

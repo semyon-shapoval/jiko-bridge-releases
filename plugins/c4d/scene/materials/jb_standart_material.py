@@ -4,6 +4,9 @@ from scene.materials.jb_base_material import JBBaseMaterial
 
 
 class JBStandardMaterial(JBBaseMaterial):
+    def nodespace_id(self) -> str | None:
+        return None
+
     def create(
         self,
         doc: c4d.documents.BaseDocument,

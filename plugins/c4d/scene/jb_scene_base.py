@@ -59,7 +59,7 @@ class JBSceneBase(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def get_or_create_asset_container(self, asset, target=None) -> tuple:
+    def get_or_create_asset_container(self, asset) -> tuple:
         """Return (container, existed) for the given asset."""
         pass
 
@@ -119,9 +119,14 @@ class JBSceneBase(ABC):
     def extract_placeholders(self, container) -> list:
         """Extract and return placeholder dicts from a layout container.
 
-        Each dict has keys: ``pack_name``, ``asset_name``, ``matrix``.
+        Each dict has keys: ``packName``, ``assetName``, ``matrix``.
         Placeholder objects are removed from *container* during extraction.
         """
+        pass
+
+    @abstractmethod
+    def get_materials_from_objects(self, objects: list) -> list:
+        """Return materials assigned to the given meshes."""
         pass
 
     # ------------------------------------------------------------------

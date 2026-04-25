@@ -1,151 +1,114 @@
+from __future__ import annotations
 import c4d
 import maxon
-from scene.materials.jb_base_material import JBBaseMaterial
-
+from scene.materials.jb_base_node_material import JBBaseNodeMaterial
 
 RS_ID = "com.redshift3d.redshift4c4d"
-REDSHIFT_NODESPACE_ID = f"{RS_ID}.class.nodespace"
-RS_CORE_ID = f"{RS_ID}.nodes.core"
-RS_OUTPUT_ID = f"{RS_ID}.node.output"
-RS_MATERIAL_ID = f"{RS_CORE_ID}.material"
-RS_TEX_ID = f"{RS_CORE_ID}.texturesampler"
-RS_BUMPMAP_ID = f"{RS_CORE_ID}.bumpmap"
-RS_DISPLACEMENT_ID = f"{RS_CORE_ID}.displacement"
+RS_NODESPACE = f"{RS_ID}.class.nodespace"
+RS_CORE = f"{RS_ID}.nodes.core"
+RS_OUTPUT = f"{RS_ID}.node.output"
+RS_MATERIAL = f"{RS_CORE}.material"
+RS_TEX = f"{RS_CORE}.texturesampler"
+RS_BUMPMAP = f"{RS_CORE}.bumpmap"
+RS_DISPLACEMENT = f"{RS_CORE}.displacement"
+
+# Порты RS Material
+RS_PORT_DIFFUSE = f"{RS_MATERIAL}.diffuse_color"
+RS_PORT_BUMP = f"{RS_MATERIAL}.bump_input"
+RS_PORT_ROUGHNESS = f"{RS_MATERIAL}.refl_roughness"
+RS_PORT_EMISSIVE = f"{RS_MATERIAL}.emissive_color"
+RS_PORT_METALNESS = f"{RS_MATERIAL}.refl_metalness"
+RS_PORT_DISP_OUT = f"{RS_OUTPUT}.displacement"
+RS_PORT_DISP_TEX = f"{RS_DISPLACEMENT}.texmap"
+RS_PORT_BUMP_IN = f"{RS_BUMPMAP}.input"
+RS_PORT_TEX_FILE = f"{RS_TEX}.tex0"
+RS_PORT_TEX_PATH_SUB = "path"
 NODE_NAME_ID = "net.maxon.node.base.name"
 
 
-class JBRedshiftMaterial(JBBaseMaterial):
+class JBRedshiftMaterial(JBBaseNodeMaterial):
     def id(self) -> str:
         return c4d.VPrsrenderer
-    
-    def create(
-        self,
-        doc: c4d.documents.BaseDocument,
-        name: str,
-    ) -> c4d.BaseMaterial:
-        """
-        Graph Node: https://developers.maxon.net/docs/py/2023_2/modules/maxon_generated/frameworks/graph/datatype/maxon.GraphNode.html
-        Graph Interface: https://developers.maxon.net/docs/py/2023_2/modules/maxon_generated/frameworks/graph/interface/maxon.GraphModelInterface.html
-        """
-        material = c4d.BaseMaterial(c4d.Mmaterial)
-        material.SetName(name)
 
-        nodes_material = material.GetNodeMaterialReference()
-        nodes_material.AddGraph(REDSHIFT_NODESPACE_ID)
-        rs_graph = nodes_material.GetGraph(REDSHIFT_NODESPACE_ID)
+    def nodespace_id(self) -> str:
+        return RS_NODESPACE
 
-        with rs_graph.BeginTransaction() as transaction:
-            rs_material = None
-            rs_output = None
-            for child in rs_graph.GetRoot().GetChildren():
-                if child.IsInner():
-                    n = child.GetValue(NODE_NAME_ID)
-                    if n == "RS Material":
-                        rs_material = child
-                    if n == "Output":
-                        rs_output = child
+    # ------------------------------------------------------------------ #
 
-            if not rs_material:
-                rs_material = rs_graph.AddChild("", RS_MATERIAL_ID)
-            if not rs_output:
-                rs_output = rs_graph.AddChild("", RS_OUTPUT_ID)
+    def _get_key_nodes(self, graph) -> dict:
+        return {
+            "material": self.find_node(graph, RS_MATERIAL),
+            "output": self.find_node(graph, RS_OUTPUT),
+        }
 
-            transaction.Commit()
+    def _build_default_graph(self, graph, transaction) -> dict:
+        material_node, _ = self.find_or_add_node(graph, RS_MATERIAL)
+        output_node, _ = self.find_or_add_node(graph, RS_OUTPUT)
+        return {"material": material_node, "output": output_node}
 
-        doc.InsertMaterial(material)
-        return material
+    # ------------------------------------------------------------------ #
 
-    def apply_channel(
-        self, material: c4d.BaseMaterial, channel: str, path: str
-    ) -> None:
-        nodes_material = material.GetNodeMaterialReference()
-        rs_graph = nodes_material.GetGraph(REDSHIFT_NODESPACE_ID)
+    def _set_tex_path(self, node, path: str) -> None:
+        """Устанавливает путь к файлу через tex0 → path (sub-port URL)."""
+        filename_port = node.GetInputs().FindChild(maxon.InternedId(RS_PORT_TEX_FILE))
+        if filename_port is None:
+            return
+        path_port = filename_port.FindChild(maxon.InternedId(RS_PORT_TEX_PATH_SUB))
+        if path_port is not None:
+            path_port.SetDefaultValue(self.path_to_url(path))
 
-        rs_material_node = None
-        rs_output_node = None
-        for child in rs_graph.GetRoot().GetChildren():
-            if child.IsInner():
-                name = child.GetValue(NODE_NAME_ID)
-                if name == "RS Material":
-                    rs_material_node = child
-                if name == "Output":
-                    rs_output_node = child
+    def _make_texture_node(self, graph, channel: str, path: str):
+        existing = self.find_nodes_by_asset_id(graph, RS_TEX)
+        for node in existing:
+            try:
+                name_val = node.GetValue(NODE_NAME_ID)
+                if str(name_val) == channel:
+                    self._set_tex_path(node, path)
+                    return node
+            except Exception:
+                pass
 
-        with rs_graph.BeginTransaction() as transaction:
+        node = self.add_node(graph, RS_TEX)
+        try:
+            node.SetValue(NODE_NAME_ID, maxon.String(channel))
+        except Exception:
+            pass
+        self._set_tex_path(node, path)
+        return node
 
-            def create_texture_node():
-                node = rs_graph.AddChild("", RS_TEX_ID)
-                node.SetValue(NODE_NAME_ID, maxon.String(channel))
-                node.SetValue(
-                    maxon.InternedId(f"{RS_TEX_ID}.color_multiplier"),
-                    maxon.Data(maxon.Url(f"file:///{path}")),
-                )
-                return node, node.GetOutputs().GetChildren()[0]
+    def _wire_channel(self, channel, path, graph, key_nodes, transaction) -> None:
+        material = key_nodes.get("material")
+        output = key_nodes.get("output")
+        tex = self._make_texture_node(graph, channel, path)
+        tex_out = self.get_first_output(tex)
+        if tex_out is None:
+            return
 
-            self._wire_channel(
-                channel,
-                lambda _: create_texture_node(),
-                rs_graph,
-                rs_material_node,
-                rs_output_node,
-            )
-            transaction.Commit()
-
-        material.Update(True, True)
-
-    @staticmethod
-    def _wire_channel(
-        channel, create_texture_node, rs_graph, rs_material, rs_output
-    ) -> None:
         if channel == "basecolor":
-            _, out = create_texture_node(channel)
-            out.Connect(
-                rs_material.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_MATERIAL_ID}.diffuse_color")
-                )
-            )
+            tex_out.Connect(self.get_input_port(material, RS_PORT_DIFFUSE))
+
         elif channel == "normal":
-            _, out = create_texture_node(channel)
-            bump = rs_graph.AddChild("", RS_BUMPMAP_ID)
-            out.Connect(bump.GetInputs().GetChildren()[0])
-            bump.GetOutputs().GetChildren()[0].Connect(
-                rs_material.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_MATERIAL_ID}.bump_input")
-                )
-            )
+            bump, _ = self.find_or_add_node(graph, RS_BUMPMAP)
+            tex_out.Connect(self.get_input_port(bump, RS_PORT_BUMP_IN))
+            bump_out = self.get_first_output(bump)
+            if bump_out is not None:
+                bump_out.Connect(self.get_input_port(material, RS_PORT_BUMP))
+
         elif channel == "roughness":
-            _, out = create_texture_node(channel)
-            out.Connect(
-                rs_material.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_MATERIAL_ID}.refl_roughness")
-                )
-            )
-        elif channel == "height":
-            _, out = create_texture_node(channel)
-            disp = rs_graph.AddChild("", RS_DISPLACEMENT_ID)
-            out.Connect(
-                disp.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_DISPLACEMENT_ID}.texmap")
-                )
-            )
-            disp.GetOutputs().GetChildren()[0].Connect(
-                rs_output.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_OUTPUT_ID}.displacement")
-                )
-            )
-        elif channel == "emissive":
-            _, out = create_texture_node(channel)
-            out.Connect(
-                rs_material.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_MATERIAL_ID}.emissive_color")
-                )
-            )
+            tex_out.Connect(self.get_input_port(material, RS_PORT_ROUGHNESS))
+
         elif channel == "metallic":
-            _, out = create_texture_node(channel)
-            out.Connect(
-                rs_material.GetInputs().FindChild(
-                    maxon.InternedId(f"{RS_MATERIAL_ID}.refl_metalness")
-                )
-            )
+            tex_out.Connect(self.get_input_port(material, RS_PORT_METALNESS))
+
+        elif channel == "emissive":
+            tex_out.Connect(self.get_input_port(material, RS_PORT_EMISSIVE))
+
+        elif channel == "height":
+            disp, _ = self.find_or_add_node(graph, RS_DISPLACEMENT)
+            tex_out.Connect(self.get_input_port(disp, RS_PORT_DISP_TEX))
+            disp_out = self.get_first_output(disp)
+            if disp_out is not None:
+                disp_out.Connect(self.get_input_port(output, RS_PORT_DISP_OUT))
+
         elif channel in ("opacity", "refraction", "ao"):
-            create_texture_node(channel)
+            pass

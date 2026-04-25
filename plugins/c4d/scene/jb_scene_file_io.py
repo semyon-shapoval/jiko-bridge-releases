@@ -132,7 +132,7 @@ class JBSceneFileIO(JBSceneInstance):
         plug = self._find_plugin(c4d.FORMAT_USDIMPORT, c4d.PLUGINTYPE_SCENELOADER)
         if not plug:
             return False
-
+        
         result = self._merge_document(doc, file_path)
         if not result:
             logger.error("USD import failed: %s", file_path)

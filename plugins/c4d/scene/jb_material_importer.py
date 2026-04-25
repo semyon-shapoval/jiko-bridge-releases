@@ -4,16 +4,17 @@ from scene.jb_scene_container import JBSceneContainer
 from scene.materials import (
     JBBaseMaterial,
     JBRedshiftMaterial,
-    JBArnoldMaterial,
-    JBStandardMaterial,
+    JBArnoldNodeMaterial,
+    JBCinema4DNodeMaterial,
 )
+
 
 class JBMaterialImporter(JBSceneContainer):
     def __init__(self):
         super().__init__()
         self._redshift = JBRedshiftMaterial()
-        self._arnold = JBArnoldMaterial()
-        self._standard = JBStandardMaterial()
+        self._arnold = JBArnoldNodeMaterial()
+        self._standard = JBCinema4DNodeMaterial()
 
     def _get_material_renderer(self) -> JBBaseMaterial:
         doc = c4d.documents.GetActiveDocument()
@@ -27,12 +28,18 @@ class JBMaterialImporter(JBSceneContainer):
     def import_material(self, asset: AssetModel, file: AssetFile) -> None:
         doc = c4d.documents.GetActiveDocument()
         renderer = self._get_material_renderer()
-        channel = file.asset_type.lower()
-        path = file.file_path
+        channel = file.assetType.lower()
+        path = file.filepath
 
-        existing = JBBaseMaterial.find_existing(doc, asset.asset_name)
+        materialName = f"{asset.packName}__{asset.assetName}"
+
+        existing = JBBaseMaterial.find_existing(doc, materialName)
         if existing:
-            renderer.apply_channel(existing, channel, path)
+            if renderer.has_compatible_graph(existing):
+                material = existing
+            else:
+                material = renderer.rebuild_graph(doc, existing)
         else:
-            material = renderer.create(doc, asset.asset_name)
-            renderer.apply_channel(material, channel, path)
+            material = renderer.create(doc, materialName)
+
+        renderer.apply_channel(material, channel, path)
