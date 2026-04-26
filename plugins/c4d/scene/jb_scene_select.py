@@ -19,6 +19,10 @@ class JBSceneSelect(JBTree):
     def get_selection(self) -> list:
         """Return the currently selected objects."""
         return self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
+    
+    def get_selection_mateials(self) -> list:
+        """Return the currently selected materials."""
+        return self.doc.GetActiveMaterials()
 
     def get_selected_asset_containers(self, objects: list) -> list:
         """Return all selected asset nulls."""

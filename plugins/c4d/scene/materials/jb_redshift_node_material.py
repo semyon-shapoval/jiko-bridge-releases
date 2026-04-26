@@ -23,17 +23,11 @@ RS_PORT_DISP_TEX = f"{RS_DISPLACEMENT}.texmap"
 RS_PORT_BUMP_IN = f"{RS_BUMPMAP}.input"
 RS_PORT_TEX_FILE = f"{RS_TEX}.tex0"
 RS_PORT_TEX_PATH_SUB = "path"
-NODE_NAME_ID = "net.maxon.node.base.name"
 
 
-class JBRedshiftMaterial(JBBaseNodeMaterial):
-    def id(self) -> str:
-        return c4d.VPrsrenderer
-
+class JBRedshiftNodeMaterial(JBBaseNodeMaterial):
     def nodespace_id(self) -> str:
         return RS_NODESPACE
-
-    # ------------------------------------------------------------------ #
 
     def _get_key_nodes(self, graph) -> dict:
         return {
@@ -41,42 +35,22 @@ class JBRedshiftMaterial(JBBaseNodeMaterial):
             "output": self.find_node(graph, RS_OUTPUT),
         }
 
-    def _build_default_graph(self, graph, transaction) -> dict:
+    def _build_default_graph(self, graph) -> dict:
         material_node, _ = self.find_or_add_node(graph, RS_MATERIAL)
         output_node, _ = self.find_or_add_node(graph, RS_OUTPUT)
         return {"material": material_node, "output": output_node}
 
-    # ------------------------------------------------------------------ #
-
-    def _set_tex_path(self, node, path: str) -> None:
-        """Устанавливает путь к файлу через tex0 → path (sub-port URL)."""
-        filename_port = node.GetInputs().FindChild(maxon.InternedId(RS_PORT_TEX_FILE))
-        if filename_port is None:
-            return
-        path_port = filename_port.FindChild(maxon.InternedId(RS_PORT_TEX_PATH_SUB))
-        if path_port is not None:
-            path_port.SetDefaultValue(self.path_to_url(path))
-
     def _make_texture_node(self, graph, channel: str, path: str):
-        existing = self.find_nodes_by_asset_id(graph, RS_TEX)
-        for node in existing:
-            try:
-                name_val = node.GetValue(NODE_NAME_ID)
-                if str(name_val) == channel:
-                    self._set_tex_path(node, path)
-                    return node
-            except Exception:
-                pass
+        node = self._make_labeled_node(graph, RS_TEX, channel)
+        port = node.GetInputs().FindChild(maxon.InternedId(RS_PORT_TEX_FILE))
+        if port is not None:
+            path_port = port.FindChild(maxon.InternedId(RS_PORT_TEX_PATH_SUB))
+            if path_port is not None:
+                path_port.SetDefaultValue(self.path_to_url(path))
 
-        node = self.add_node(graph, RS_TEX)
-        try:
-            node.SetValue(NODE_NAME_ID, maxon.String(channel))
-        except Exception:
-            pass
-        self._set_tex_path(node, path)
         return node
 
-    def _wire_channel(self, channel, path, graph, key_nodes, transaction) -> None:
+    def _wire_channel(self, channel, path, graph, key_nodes) -> None:
         material = key_nodes.get("material")
         output = key_nodes.get("output")
         tex = self._make_texture_node(graph, channel, path)
@@ -85,30 +59,30 @@ class JBRedshiftMaterial(JBBaseNodeMaterial):
             return
 
         if channel == "basecolor":
-            tex_out.Connect(self.get_input_port(material, RS_PORT_DIFFUSE))
+            self._connect_port(tex_out, material, RS_PORT_DIFFUSE)
 
         elif channel == "normal":
             bump, _ = self.find_or_add_node(graph, RS_BUMPMAP)
-            tex_out.Connect(self.get_input_port(bump, RS_PORT_BUMP_IN))
+            self._connect_port(tex_out, bump, RS_PORT_BUMP_IN)
             bump_out = self.get_first_output(bump)
             if bump_out is not None:
-                bump_out.Connect(self.get_input_port(material, RS_PORT_BUMP))
+                self._connect_port(bump_out, material, RS_PORT_BUMP)
 
         elif channel == "roughness":
-            tex_out.Connect(self.get_input_port(material, RS_PORT_ROUGHNESS))
+            self._connect_port(tex_out, material, RS_PORT_ROUGHNESS)
 
         elif channel == "metallic":
-            tex_out.Connect(self.get_input_port(material, RS_PORT_METALNESS))
+            self._connect_port(tex_out, material, RS_PORT_METALNESS)
 
         elif channel == "emissive":
-            tex_out.Connect(self.get_input_port(material, RS_PORT_EMISSIVE))
+            self._connect_port(tex_out, material, RS_PORT_EMISSIVE)
 
         elif channel == "height":
             disp, _ = self.find_or_add_node(graph, RS_DISPLACEMENT)
-            tex_out.Connect(self.get_input_port(disp, RS_PORT_DISP_TEX))
+            self._connect_port(tex_out, disp, RS_PORT_DISP_TEX)
             disp_out = self.get_first_output(disp)
             if disp_out is not None:
-                disp_out.Connect(self.get_input_port(output, RS_PORT_DISP_OUT))
+                self._connect_port(disp_out, output, RS_PORT_DISP_OUT)
 
         elif channel in ("opacity", "refraction", "ao"):
             pass

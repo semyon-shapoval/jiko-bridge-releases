@@ -28,18 +28,39 @@ class JBSceneContainer(JBSceneTemp):
 
         return obj, existed
 
+    def _ensure_protection_tag(self, obj: JbContainer) -> None:
+        if obj is None:
+            return
+
+        if obj.GetTags() is not None:
+            for tag in obj.GetTags():
+                try:
+                    if tag.GetType() == c4d.Tprotection:
+                        return
+                except Exception:
+                    continue
+
+        try:
+            protection_tag = c4d.BaseTag(c4d.Tprotection)
+            if protection_tag is not None:
+                obj.InsertTag(protection_tag)
+        except Exception:
+            pass
+
     def get_or_create_asset_container(
         self, asset: AssetModel, file: AssetFile = None
     ) -> tuple[JbContainer, bool]:
         doc = self.doc
 
         root_null, _ = self.get_or_create_null(doc, "Assets")
+        self._ensure_protection_tag(root_null)
 
         asset_null, asset_existed = self.get_or_create_null(
             doc, f"Asset_{asset.packName}_{asset.assetName}"
         )
 
         asset_null.InsertUnder(root_null)
+        self._ensure_protection_tag(asset_null)
 
         self.set_user_data(asset_null, "databaseName", asset.databaseName)
         self.set_user_data(asset_null, "packName", asset.packName)
@@ -87,13 +108,11 @@ class JBSceneContainer(JBSceneTemp):
 
     def filter_container_from_objects(
         self, objects: list[JbContainer]
-    ) -> list[AssetInfo]:
+    ) -> list[JbContainer]:
         return [
-            asset_info
+            obj
             for obj in objects
-            if obj.CheckType(c4d.Onull)
-            for asset_info in [AssetInfo.get_asset_info(obj)]
-            if asset_info is not None
+            if obj.CheckType(c4d.Onull) and AssetInfo.get_asset_info(obj) is not None
         ]
 
     def get_objects_recursive(self, container: JbContainer) -> list:

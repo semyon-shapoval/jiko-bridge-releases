@@ -35,36 +35,8 @@ PORT_IMG_FILE = f"{ARNOLD_IMAGE}.filename"
 
 
 class JBArnoldNodeMaterial(JBBaseNodeMaterial):
-    def id(self) -> int:
-        return 1029988
-
     def nodespace_id(self) -> str:
         return ARNOLD_NODESPACE
-
-    # ------------------------------------------------------------------ #
-    #  Определение типа существующего материала                           #
-    # ------------------------------------------------------------------ #
-
-    @staticmethod
-    def is_node_arnold(material: c4d.BaseMaterial) -> bool:
-        """Новый Arnold Node Material (нативный C4D Node Editor)"""
-        try:
-            from arnold.material import IsArnoldNodeMaterial
-
-            return IsArnoldNodeMaterial(material)
-        except Exception:
-            pass
-
-        try:
-            node_mat = material.GetNodeMaterialReference()
-            if node_mat is None:
-                return False
-            return node_mat.HasSpace(maxon.Id(ARNOLD_NODESPACE))
-        except Exception:
-            return False
-
-    def has_compatible_graph(self, material: c4d.BaseMaterial) -> bool:
-        return self.is_node_arnold(material)
 
     # ------------------------------------------------------------------ #
     #  Создание материала                                                  #
@@ -77,7 +49,7 @@ class JBArnoldNodeMaterial(JBBaseNodeMaterial):
             "correct": self.find_node(graph, ARNOLD_COLCORRECT),
         }
 
-    def _build_default_graph(self, graph, transaction) -> dict:
+    def _build_default_graph(self, graph) -> dict:
         end, _ = self.find_or_add_node(graph, ARNOLD_END)
         surface, _ = self.find_or_add_node(graph, ARNOLD_STANDARD)
         correct, _ = self.find_or_add_node(graph, ARNOLD_COLCORRECT)
@@ -91,35 +63,19 @@ class JBArnoldNodeMaterial(JBBaseNodeMaterial):
     # ------------------------------------------------------------------ #
 
     def _make_image_node(self, graph, channel: str, path: str):
-        existing = self.find_nodes_by_asset_id(graph, ARNOLD_IMAGE)
-        for node in existing:
-            try:
-                name_val = node.GetValue("net.maxon.node.base.name")
-                if str(name_val) == channel:
-                    port = self.get_input_port(node, PORT_IMG_FILE)
-                    if port is not None:
-                        port.SetDefaultValue(self.path_to_url(path))
-                    return node
-            except Exception:
-                pass
-
-        node = self.add_node(graph, ARNOLD_IMAGE)
-        try:
-            node.SetValue("net.maxon.node.base.name", maxon.String(channel))
-        except Exception:
-            pass
+        node = self._make_labeled_node(graph, ARNOLD_IMAGE, channel)
         port = self.get_input_port(node, PORT_IMG_FILE)
         if port is not None:
             port.SetDefaultValue(self.path_to_url(path))
         return node
 
-    def _wire_channel(self, channel, path, graph, key_nodes, transaction) -> None:
+    def _wire_channel(self, channel, path, graph, key_nodes) -> None:
         end = key_nodes.get("end")
         surface = key_nodes.get("surface")
         correct = key_nodes.get("correct")
 
         if surface is None:
-            print(f"[JBArnoldNode] standard_surface not found")
+            print("[JBArnoldNode] standard_surface not found")
             return
 
         img = self._make_image_node(graph, channel, path)
@@ -135,59 +91,39 @@ class JBArnoldNodeMaterial(JBBaseNodeMaterial):
 
         elif channel == "normal":
             nm, _ = self.find_or_add_node(graph, ARNOLD_NORMALMAP)
-            p = self.get_input_port(nm, PORT_NM_INPUT)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, nm, PORT_NM_INPUT)
             nm_out = self.get_first_output(nm)
             if nm_out is not None:
-                p = self.get_input_port(surface, PORT_NORMAL)
-                if p is not None:
-                    nm_out.Connect(p)
+                self._connect_port(nm_out, surface, PORT_NORMAL)
 
         elif channel == "roughness":
-            p = self.get_input_port(surface, PORT_ROUGHNESS)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, surface, PORT_ROUGHNESS)
 
         elif channel == "metallic":
-            p = self.get_input_port(surface, PORT_METALNESS)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, surface, PORT_METALNESS)
 
         elif channel == "emissive":
-            p = self.get_input_port(surface, PORT_EMIS_COLOR)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, surface, PORT_EMIS_COLOR)
             p = self.get_input_port(surface, PORT_EMISSION)
             if p:
                 p.SetDefaultValue(1.0)
 
         elif channel == "opacity":
-            p = self.get_input_port(surface, PORT_OPACITY)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, surface, PORT_OPACITY)
 
         elif channel == "refraction":
-            p = self.get_input_port(surface, PORT_TRANS_COLOR)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, surface, PORT_TRANS_COLOR)
             p = self.get_input_port(surface, PORT_TRANSMISSION)
             if p:
                 p.SetDefaultValue(1.0)
 
         elif channel == "height":
             disp, _ = self.find_or_add_node(graph, ARNOLD_DISP)
-            p = self.get_input_port(disp, PORT_DISP_MAP)
-            if p is not None:
-                img_out.Connect(p)
+            self._connect_port(img_out, disp, PORT_DISP_MAP)
             disp_out = self.get_first_output(disp)
-            if disp_out is not None and end is not None:
-                p = self.get_input_port(end, PORT_DISP_IN)
-                if p is not None:
-                    disp_out.Connect(p)
+            if disp_out is not None:
+                self._connect_port(disp_out, end, PORT_DISP_IN)
 
         elif channel == "ao":
             if correct:
-                p = self.get_input_port(correct, PORT_CC_MULTIPLY)
-                if p is not None:
-                    img_out.Connect(p)
+                self._connect_port(img_out, correct, PORT_CC_MULTIPLY)

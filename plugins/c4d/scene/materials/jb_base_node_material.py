@@ -4,6 +4,7 @@ import maxon
 from scene.materials.jb_base_material import JBBaseMaterial
 
 ASSET_ID_ATTR = "net.maxon.node.attribute.assetid"
+NODE_NAME_ID = "net.maxon.node.base.name"
 
 
 class JBBaseNodeMaterial(JBBaseMaterial):
@@ -12,11 +13,11 @@ class JBBaseNodeMaterial(JBBaseMaterial):
     Redshift и Arnold Node наследуются от него.
 
     Подкласс обязан определить:
-        nodespace_id()          -> str   (ID node space рендера)
-        node_ids()              -> dict  (словарь с ключами: output, material, texture, ...)
-        _get_key_nodes(graph)   -> dict  (найти/создать ключевые узлы в графе)
-        _build_default_graph(graph, transaction) -> None   (связать узлы по умолчанию)
-        _wire_channel(channel, path, graph, key_nodes, transaction) -> None
+                    nodespace_id()          -> str   (ID node space рендера)
+                    node_ids()              -> dict  (словарь с ключами: output, material, texture, ...)
+                    _get_key_nodes(graph)   -> dict  (найти/создать ключевые узлы в графе)
+                    _build_default_graph(graph) -> None   (связать узлы по умолчанию)
+                    _wire_channel(channel, path, graph, key_nodes) -> None
     """
 
     # ------------------------------------------------------------------ #
@@ -44,6 +45,31 @@ class JBBaseNodeMaterial(JBBaseMaterial):
         if not node_mat.HasSpace(maxon.Id(nodespace_id)):
             node_mat.AddGraph(maxon.Id(nodespace_id))
         return node_mat.GetGraph(maxon.Id(nodespace_id))
+
+    def _make_labeled_node(self, graph, asset_id: str, label: str):
+        """Ищет узел с именем label среди узлов asset_id; создаёт, если не найден."""
+        for node in self.find_nodes_by_asset_id(graph, asset_id):
+            try:
+                if str(node.GetValue(NODE_NAME_ID)) == label:
+                    return node
+            except Exception:
+                pass
+        node = self.add_node(graph, asset_id)
+        try:
+            node.SetValue(NODE_NAME_ID, maxon.String(label))
+        except Exception:
+            pass
+        return node
+
+    def _connect_port(self, out_port, node, port_id: str) -> bool:
+        """Соединяет out_port с входным портом port_id узла node."""
+        if out_port is None or node is None:
+            return False
+        inp = self.get_input_port(node, port_id)
+        if inp is None:
+            return False
+        out_port.Connect(inp)
+        return True
 
     @staticmethod
     def find_nodes_by_asset_id(graph, asset_id: str) -> list:
@@ -134,16 +160,6 @@ class JBBaseNodeMaterial(JBBaseMaterial):
         return outputs[0] if outputs else None
 
     @staticmethod
-    def connect(src_node, dst_node, dst_port_id: str) -> bool:
-        """Соединяет первый выход src_node с портом dst_port_id узла dst_node."""
-        out = JBBaseNodeMaterial.get_first_output(src_node)
-        inp = JBBaseNodeMaterial.get_input_port(dst_node, dst_port_id)
-        if out is None or inp is None:
-            return False
-        out.Connect(inp)
-        return True
-
-    @staticmethod
     def path_to_url(path: str) -> maxon.Url:
         normalized = path.replace("\\", "/")
         if not normalized.startswith("/"):
@@ -161,7 +177,7 @@ class JBBaseNodeMaterial(JBBaseMaterial):
         """
         raise NotImplementedError
 
-    def _build_default_graph(self, graph, transaction) -> dict:
+    def _build_default_graph(self, graph) -> dict:
         """
         Создать базовую структуру узлов в новом графе внутри транзакции.
         Возвращает словарь ключевых узлов.
@@ -174,26 +190,9 @@ class JBBaseNodeMaterial(JBBaseMaterial):
         path: str,
         graph,
         key_nodes: dict,
-        transaction,
     ) -> None:
         """Подключить канал к нужным портам материала."""
         raise NotImplementedError
-
-    # ------------------------------------------------------------------ #
-    #  Проверка совместимости                                             #
-    # ------------------------------------------------------------------ #
-
-    def has_compatible_graph(self, material: c4d.BaseMaterial) -> bool:
-        space = self.nodespace_id()
-        if space is None:
-            return False
-        try:
-            node_mat = material.GetNodeMaterialReference()
-            if node_mat is None:
-                return False
-            return node_mat.HasSpace(maxon.Id(space))
-        except Exception:
-            return False
 
     # ------------------------------------------------------------------ #
     #  Создание нового материала                                          #
@@ -212,7 +211,7 @@ class JBBaseNodeMaterial(JBBaseMaterial):
             return material
 
         with graph.BeginTransaction() as t:
-            self._build_default_graph(graph, t)
+            self._build_default_graph(graph)
             t.Commit()
 
         doc.InsertMaterial(material)
@@ -240,11 +239,11 @@ class JBBaseNodeMaterial(JBBaseMaterial):
         missing = [k for k, v in key_nodes.items() if v is None]
         if missing:
             with graph.BeginTransaction() as t:
-                key_nodes = self._build_default_graph(graph, t)
+                key_nodes = self._build_default_graph(graph)
                 t.Commit()
 
         with graph.BeginTransaction() as t:
-            self._wire_channel(channel, path, graph, key_nodes, t)
+            self._wire_channel(channel, path, graph, key_nodes)
             t.Commit()
 
         material.Update(True, True)

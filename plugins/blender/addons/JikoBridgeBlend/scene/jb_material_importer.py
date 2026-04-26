@@ -1,19 +1,18 @@
 import bpy
 from typing import Optional
 
-from .jb_asset_model import AssetModel
-from .jb_logger import get_logger
+from ..jb_asset_model import AssetModel
+from .jb_scene_container import JBSceneContainer
+from ..jb_logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class JBMaterialImporter:
+class JBMaterialImporter(JBSceneContainer):
     """Создаёт материалы Blender из ассета."""
 
     def import_material(self, asset: AssetModel) -> Optional[bpy.types.Material]:
         """Определяет активный рендерер и создаёт подходящий материал."""
-        render_engine = bpy.context.scene.render.engine
-
         return self._create_principled_material(asset)
 
     def _create_principled_material(

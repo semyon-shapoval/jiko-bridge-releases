@@ -14,8 +14,9 @@ class JB_AssetImporter:
 
     def import_assets(self) -> None:
         objects = self.scene.get_selection()
+
         assets = (
-            self._collect_materials_from_meshes(objects)
+            self._collect_materials(objects)
             or self._collect_assets_for_reimport(objects)
             or self._collect_active_asset(objects)
         )
@@ -61,8 +62,9 @@ class JB_AssetImporter:
         asset = self.api.get_active_asset()
         return [asset] if asset else []
 
-    def _collect_materials_from_meshes(self, objects: list) -> list:
-        materials = self.scene.get_materials_from_objects(objects)
+    def _collect_materials(self, objects: list) -> list:
+        materials = list(self.scene.get_materials_from_objects(objects)) + list(self.scene.get_selection_mateials())
+
         if not materials:
             return []
 
