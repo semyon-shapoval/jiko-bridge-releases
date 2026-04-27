@@ -5,7 +5,6 @@ Code by Semyon Shapoval, 2026
 
 from src.scene.jb_scene_base import JbSceneBase
 from src.scene.jb_scene_tree import JbSceneTree
-from src.scene.jb_scene_select import JbSceneSelect
 from src.scene.jb_scene_container import JbSceneContainer
 from src.scene.jb_scene_instance import JbSceneInstance
 from src.scene.jb_scene_file import JbSceneFile
@@ -18,7 +17,6 @@ __all__ = [
     "JbSceneBase",
     "JbSceneTree",
     "JbSceneTemp",
-    "JbSceneSelect",
     "JbSceneFile",
     "JbSceneInstance",
     "JbSceneContainer",

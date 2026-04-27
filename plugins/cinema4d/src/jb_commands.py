@@ -6,7 +6,9 @@ Code by Semyon Shapoval, 2026
 import os
 
 import c4d
-from src import JbAssetImporter, JbAssetExporter, reload_plugin_modules
+from src.jb_asset_importer import JbAssetImporter
+from src.jb_asset_exporter import JbAssetExporter
+from src.jb_utils import reload_plugin_modules
 
 IDC_POPUP_ACTION_IMPORT = 2001
 IDC_POPUP_ACTION_EXPORT = 2002

@@ -2,15 +2,17 @@
 Scene container management for Cinema 4D.
 Code by Semyon Shapoval, 2026
 """
+
 from typing import Optional
 
 import c4d
 
-from src import JbContainer, AssetFile, AssetModel, AssetInfo
-from src.scene import JbSceneSelect
+from src.jb_asset_model import AssetFile, AssetModel, AssetInfo
+from src.jb_types import JbContainer
+from src.scene.jb_scene_tree import JbSceneTree
 
 
-class JbSceneContainer(JbSceneSelect):
+class JbSceneContainer(JbSceneTree):
     """Container and asset management: null objects, user data, collections."""
 
     def get_or_create_null(
@@ -26,9 +28,7 @@ class JbSceneContainer(JbSceneSelect):
 
         obj.SetName(name)
         obj[c4d.ID_BASELIST_ICON_FILE] = "12499"
-        obj[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = (
-            c4d.ID_BASELIST_ICON_COLORIZE_MODE_CUSTOM
-        )
+        obj[c4d.ID_BASELIST_ICON_COLORIZE_MODE] = c4d.ID_BASELIST_ICON_COLORIZE_MODE_CUSTOM
         obj[c4d.ID_BASELIST_ICON_COLOR] = c4d.Vector(0.071, 0.949, 0.85)
 
         return obj, existed
@@ -53,7 +53,7 @@ class JbSceneContainer(JbSceneSelect):
             pass
 
     def get_or_create_asset_container(
-        self, asset: AssetModel, file: Optional[AssetFile]
+        self, asset: AssetModel, file: Optional[AssetFile] = None
     ) -> tuple[JbContainer, bool]:
         """Get or create an asset container null with user data from the asset and file."""
         doc = self.doc
@@ -98,6 +98,32 @@ class JbSceneContainer(JbSceneSelect):
         if element is not None:
             obj[element] = value
 
+    def get_asset_from_user_data(self, container: JbContainer) -> Optional[AssetInfo]:
+        """Parse asset info from a container's user data."""
+        pack_name = asset_name = asset_type = database_name = None
+
+        for key, bc in container.GetUserDataContainer() or []:
+            bc_name = bc[c4d.DESC_NAME]
+            if bc_name == "packName":
+                pack_name = container[key]
+            elif bc_name == "assetName":
+                asset_name = container[key]
+            elif bc_name == "assetType":
+                asset_type = container[key] or None
+            elif bc_name == "databaseName":
+                database_name = container[key] or None
+
+        if not (pack_name and asset_name):
+            return None
+
+        asset_info = AssetInfo(
+            pack_name,
+            asset_name,
+            asset_type,
+            database_name,
+        )
+        return asset_info
+
     def copy_user_data(self, src: JbContainer, dst: JbContainer) -> None:
         """Copy all user data fields from src to dst."""
         for key, bc in src.GetUserDataContainer():
@@ -108,20 +134,15 @@ class JbSceneContainer(JbSceneSelect):
     def cleanup_empty_objects(self, parent: JbContainer) -> None:
         """Удаляет пустые Null-объекты внутри parent."""
         for obj in parent.GetChildren():
-            if (
-                obj.GetType() in (c4d.Onull, c4d.Oalembicgenerator)
-                and len(obj.GetChildren()) == 0
-            ):
+            if obj.GetType() in (c4d.Onull, c4d.Oalembicgenerator) and len(obj.GetChildren()) == 0:
                 obj.Remove()
 
-    def filter_container_from_objects(
-        self, objects: list[JbContainer]
-    ) -> list[JbContainer]:
+    def filter_container_from_objects(self, objects: list[JbContainer]) -> list[JbContainer]:
         """Filter out non-container objects from the given list."""
         return [
             obj
             for obj in objects
-            if obj.CheckType(c4d.Onull) and AssetInfo.from_user_data(obj) is not None
+            if obj.CheckType(c4d.Onull) and self.get_asset_from_user_data(obj) is not None
         ]
 
     def get_objects_recursive(self, container: JbContainer) -> list:

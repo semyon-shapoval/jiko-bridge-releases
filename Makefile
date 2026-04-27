@@ -35,4 +35,7 @@ c4d-test:
 	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
 
 c4d-lint:
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d/src
+
+c4d-typecheck:
 	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d/src

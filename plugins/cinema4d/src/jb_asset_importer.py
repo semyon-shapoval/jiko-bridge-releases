@@ -3,17 +3,13 @@ Asset importer from Jiko Bridge to C4D
 Code by Semyon Shapoval, 2026
 """
 
-from src import (
-    JbAPI,
-    JbScene,
-    AssetFile,
-    AssetInfo,
-    AssetModel,
-    JbContainer,
-    JbObject,
-    confirm,
-    get_logger,
-)
+from src.jb_api import JbAPI
+from src.jb_asset_model import AssetFile, AssetInfo, AssetModel
+from src.jb_logger import get_logger
+from src.jb_types import JbContainer, JbObject
+from src.jb_utils import confirm
+
+from src.scene.jb_scene import JbScene
 
 logger = get_logger(__name__)
 
@@ -56,15 +52,10 @@ class JbAssetImporter:
         assets = []
         for container in asset_containers:
             self.scene.clear_container(container)
-            asset_info = AssetInfo.from_user_data(container)
+            asset_info = self.scene.get_asset_from_user_data(container)
             if not asset_info:
                 continue
-            asset = self.api.get_asset(
-                asset_info.pack_name,
-                asset_info.asset_name,
-                asset_info.database_name,
-                [AssetFile(asset_type=asset_info.asset_type)],
-            )
+            asset = self.api.get_asset_by_info(asset_info)
             if asset:
                 assets.append(asset)
         return assets
@@ -78,7 +69,7 @@ class JbAssetImporter:
 
     def _collect_materials(self, objects: list[JbObject]) -> list:
         materials = list(self.scene.get_materials_from_objects(objects)) + list(
-            self.scene.get_selection_mateials()
+            self.scene.get_selection_materials()
         )
 
         if not materials:
@@ -144,19 +135,13 @@ class JbAssetImporter:
             if not child_asset:
                 continue
 
-            asset_container, exists = self.scene.get_or_create_asset_container(
-                child_asset
-            )
+            asset_container, exists = self.scene.get_or_create_asset_container(child_asset)
             if not exists:
-                model_file = next(
-                    (f for f in child_asset.files if f.bridgeType == "model"), None
-                )
+                model_file = next((f for f in child_asset.files if f.bridgeType == "model"), None)
                 if model_file:
                     self.scene.import_with_temp(model_file.filepath, asset_container)
 
-            instance = self.scene.create_instance(
-                asset_container, child_asset.asset_name
-            )
+            instance = self.scene.create_instance(asset_container, child_asset.asset_name)
             self.scene.set_instance_transform(instance, p["matrix"])
             self.scene.add_instance_to_container(instance, layout_container)
 

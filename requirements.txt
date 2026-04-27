@@ -1,3 +1,4 @@
 stickytape
 mypy
+pylint
 fake-bpy-module-latest

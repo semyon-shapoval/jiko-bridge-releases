@@ -5,8 +5,10 @@ Code by Semyon Shapoval, 2026
 
 import c4d
 
-from src.scene import JbSceneContainer
-from src import get_logger, AssetInfo, JbContainer
+from src.scene.jb_scene_container import JbSceneContainer
+from src.jb_logger import get_logger
+from src.jb_asset_model import AssetInfo
+from src.jb_types import JbContainer
 
 logger = get_logger(__name__)
 
@@ -59,9 +61,7 @@ class JbSceneInstance(JbSceneContainer):
             for tag in obj.GetTags():
                 if tag.CheckType(c4d.Ttexture):
                     material = (
-                        tag[c4d.TEXTURETAG_MATERIAL]
-                        if tag.GetType() == c4d.Ttexture
-                        else None
+                        tag[c4d.TEXTURETAG_MATERIAL] if tag.GetType() == c4d.Ttexture else None
                     )
                     if material:
                         info = AssetInfo.from_string(material.GetName())
@@ -92,7 +92,7 @@ class JbSceneInstance(JbSceneContainer):
         for obj in objects:
             if not obj.CheckType(c4d.Oinstance):
                 continue
-            info = AssetInfo.from_user_data(obj)
+            info = self.get_asset_from_user_data(obj)
             if not info:
                 continue
             placeholder = self._create_placeholder(doc, info.pack_name, info.asset_name)
@@ -108,9 +108,7 @@ class JbSceneInstance(JbSceneContainer):
     ):
         material_type = getattr(c4d, "Mmaterial", None)
         material = (
-            c4d.BaseMaterial(material_type)
-            if material_type is not None
-            else c4d.BaseMaterial()
+            c4d.BaseMaterial(material_type) if material_type is not None else c4d.BaseMaterial()
         )
         material.SetName(f"{pack_name}__{asset_name}")
         doc.InsertMaterial(material)

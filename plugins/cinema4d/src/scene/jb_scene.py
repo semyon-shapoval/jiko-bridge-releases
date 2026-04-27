@@ -8,8 +8,9 @@ from __future__ import annotations
 from typing import Optional
 
 import c4d
-from src import get_logger
-from src.scene import JbMaterialImporter, JbSceneTemp
+from src.jb_logger import get_logger
+from src.scene.jb_material_importer import JbMaterialImporter
+from src.scene.jb_scene_temp import JbSceneTemp
 
 logger = get_logger(__name__)
 
@@ -57,9 +58,7 @@ class JbScene(JbMaterialImporter, JbSceneTemp):
         ) as tmp_doc:
             if tmp_doc is None:
                 return None
-            self._replace_instances_with_placeholders(
-                tmp_doc, self.get_all_objects(tmp_doc)
-            )
+            self._replace_instances_with_placeholders(tmp_doc, self.get_all_objects(tmp_doc))
             tmp_doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
             self.make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
             self.project_scale(tmp_doc, 0.01)

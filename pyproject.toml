@@ -31,9 +31,9 @@ known_first_party = ["src"]
 line_length = 100
 
 [tool.pylint.MASTER]
-extension-pkg-whitelist = ["c4d"]
-ignored-modules = ["c4d"]
+extension-pkg-whitelist = ["c4d", "maxon"]
+ignored-modules = ["c4d", "maxon"]
 generated-members = ["c4d.*"]
 
 [tool.pylint."MESSAGES CONTROL"]
-disable = ["assignment-from-no-return"]
+disable = ["assignment-from-no-return", "too-few-public-methods"]

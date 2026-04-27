@@ -4,9 +4,9 @@ Code by Semyon Shapoval, 2026
 """
 
 import c4d
-from src import AssetModel, AssetFile, get_logger
+from src.jb_asset_model import AssetModel, AssetFile
+from src.jb_logger import get_logger
 from src.materials import (
-    JbBaseMaterial,
     JbRedshiftNodeMaterial,
     JbArnoldNodeMaterial,
     JbStandardNodeMaterial,
@@ -18,6 +18,7 @@ VIEWPORT_ID = 300001061
 
 logger = get_logger(__name__)
 
+
 class JbMaterialImporter:
     """Material importer that handles different renderers."""
 
@@ -27,17 +28,26 @@ class JbMaterialImporter:
         self._arnold = JbArnoldNodeMaterial()
         self._standard = JbStandardNodeMaterial()
 
-    def _get_material_renderer(self) -> JbBaseMaterial:
+    def find_existing(self, name: str):
+        """Find an existing material by name."""
+        doc = c4d.documents.GetActiveDocument()
+        mat = doc.GetFirstMaterial()
+        while mat:
+            if mat.GetName() == name:
+                return mat
+            mat = mat.GetNext()
+        return None
+
+    def _get_material_renderer(self):
         doc = c4d.documents.GetActiveDocument()
         render_id = doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
         if render_id == REDSHIFT_ID:
             return self._redshift
-        elif render_id == ARNOLD_ID:
+        if render_id == ARNOLD_ID:
             return self._arnold
-        elif render_id == VIEWPORT_ID:
+        if render_id == VIEWPORT_ID:
             return self._standard
-        else:
-            return self._standard
+        return self._standard
 
     def import_material(self, asset: AssetModel, file: AssetFile) -> None:
         """Import a single material file into the scene."""
@@ -52,7 +62,7 @@ class JbMaterialImporter:
 
         material_name = f"{asset.pack_name}__{asset.asset_name}"
 
-        existing = JbBaseMaterial.find_existing(doc, material_name)
+        existing = self.find_existing(material_name)
         if existing:
             material = renderer.build_graph(existing)
         else:

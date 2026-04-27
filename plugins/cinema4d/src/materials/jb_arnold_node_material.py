@@ -1,6 +1,11 @@
+"""
+Arnold node material implementation for Cinema 4D.
+Code by Semyon Shapoval, 2026
+"""
+
 from __future__ import annotations
 
-from src.materials import JbBaseNodeMaterial
+from src.materials.jb_base_node_material import JbBaseNodeMaterial
 
 ARNOLD_NODESPACE = "com.autodesk.arnold.nodespace"
 ARNOLD_END = "com.autodesk.arnold.material"
@@ -34,6 +39,8 @@ PORT_IMG_FILE = f"{ARNOLD_IMAGE}.filename"
 
 
 class JbArnoldNodeMaterial(JbBaseNodeMaterial):
+    """Arnold node material implementation."""
+
     def nodespace_id(self) -> str:
         return ARNOLD_NODESPACE
 

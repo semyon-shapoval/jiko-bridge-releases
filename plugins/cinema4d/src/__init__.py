@@ -14,9 +14,6 @@ from src.jb_asset_model import AssetFile, AssetInfo, AssetModel
 # Depends on jb_logger, jb_asset_model
 from src.jb_api import JbAPI
 
-# Depends on jb_logger, jb_asset_model, jb_types
-from src.scene import JbScene
-
 # Depends on JbAPI, jb_asset_model, jb_utils, jb_logger, jb_types
 from src.jb_asset_exporter import JbAssetExporter
 from src.jb_asset_importer import JbAssetImporter

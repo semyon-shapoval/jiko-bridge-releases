@@ -6,9 +6,6 @@ Code by Semyon Shapoval, 2026
 import re
 from typing import Any, List, Optional
 
-import c4d
-from src import JbContainer
-
 
 class AssetInfo:
     """Represents the basic information about an asset."""
@@ -42,33 +39,6 @@ class AssetInfo:
                 asset_name=m.group("asset"),
             )
         return None
-
-    @classmethod
-    def from_user_data(cls, container: JbContainer):
-        """Parse asset info from a container's user data."""
-        pack_name = asset_name = asset_type = database_name = None
-
-        for key, bc in container.GetUserDataContainer() or []:
-            bc_name = bc[c4d.DESC_NAME]
-            if bc_name == "packName":
-                pack_name = container[key]
-            elif bc_name == "assetName":
-                asset_name = container[key]
-            elif bc_name == "assetType":
-                asset_type = container[key] or None
-            elif bc_name == "databaseName":
-                database_name = container[key] or None
-
-        if not (pack_name and asset_name):
-            return None
-
-        return cls(
-            pack_name,
-            asset_name,
-            asset_type,
-            database_name,
-        )
-
 
 class AssetFile:
     """Represents a file associated with an asset."""

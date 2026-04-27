@@ -10,7 +10,9 @@ import urllib.error
 import urllib.request
 from typing import List, Optional
 
-from src import get_logger, AssetFile, AssetModel
+from src.jb_logger import get_logger
+from src.jb_asset_model import AssetFile, AssetModel
+from src.jb_asset_model import AssetInfo
 
 DEFAULT_PORT = 5174
 
@@ -22,9 +24,7 @@ def _get_port() -> int:
     if system == "Windows":
         path = os.path.join(os.getenv("APPDATA", ""), "jiko-bridge", "settings.json")
     elif system == "Darwin":
-        path = os.path.expanduser(
-            "~/Library/Application Support/jiko-bridge/settings.json"
-        )
+        path = os.path.expanduser("~/Library/Application Support/jiko-bridge/settings.json")
     else:
         base = os.getenv("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
         path = os.path.join(base, "jiko-bridge", "settings.json")
@@ -95,16 +95,21 @@ class JbAPI:
             payload["databaseName"] = database_name
         if files:
             payload["files"] = [file.to_dict() for file in files]
-        return self._asset_from_response(
-            self._request("/api/asset", payload, method="POST")
+        return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
+
+    def get_asset_by_info(self, asset_info: AssetInfo) -> Optional[AssetModel]:
+        """Fetches an asset using an AssetInfo object."""
+        return self.get_asset(
+            asset_info.pack_name,
+            asset_info.asset_name,
+            asset_info.database_name,
+            [AssetFile(asset_type=asset_info.asset_type)],
         )
 
     def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
         """Searches for an asset by a free-form key."""
         payload: dict = {"searchKey": search_key}
-        return self._asset_from_response(
-            self._request("/api/asset", payload, method="POST")
-        )
+        return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
 
     def create_asset(
         self,

@@ -4,25 +4,19 @@ Code by Semyon Shapoval, 2026
 """
 
 import os
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, MutableMapping, Optional
 
 import c4d
-from src import get_logger
-from src.scene import JbSceneInstance
+from src.jb_logger import get_logger
+from src.scene.jb_scene_instance import JbSceneInstance
 
 logger = get_logger(__name__)
 
 
 class JbSceneFile(JbSceneInstance):
     """File import/export layer in the scene hierarchy."""
-
-    def __init__(self):
-        base = os.path.join(tempfile.gettempdir(), "jiko-bridge")
-        os.makedirs(base, exist_ok=True)
-        self.cache_path = base
 
     # ------------------------------------------------------------------
     # Low-level helpers

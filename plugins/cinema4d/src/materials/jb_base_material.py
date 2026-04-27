@@ -43,13 +43,3 @@ class JbBaseMaterial:
             node_mat.AddGraph(maxon.Id(space))
 
         return material
-
-    @staticmethod
-    def find_existing(doc: c4d.documents.BaseDocument, name: str):
-        """Find an existing material by name."""
-        mat = doc.GetFirstMaterial()
-        while mat:
-            if mat.GetName() == name:
-                return mat
-            mat = mat.GetNext()
-        return None

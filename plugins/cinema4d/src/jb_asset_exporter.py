@@ -5,8 +5,12 @@ Code by Semyon Shapoval, 2026
 
 import os
 
-from src import JbAPI, AssetFile, AssetInfo, confirm, get_logger, JbContainer
-from src.scene import JbScene
+from src.jb_api import JbAPI
+from src.jb_asset_model import AssetFile
+from src.jb_logger import get_logger
+from src.jb_types import JbContainer
+from src.jb_utils import confirm
+from src.scene.jb_scene import JbScene
 
 logger = get_logger(__name__)
 
@@ -20,18 +24,17 @@ class JbAssetExporter:
 
     def export_asset(self) -> None:
         """Export the selected asset or create a new one if no asset container is selected."""
-        asset_container = self.scene.get_selected_asset_container()
+        selected_objects = self.scene.get_selection()
+        asset_container = self.scene.filter_container_from_objects(selected_objects)
         if asset_container:
             self._update_asset(asset_container)
         else:
-            self._create_new_asset(self.scene.get_selection())
+            self._create_new_asset(selected_objects)
 
     def _update_asset(self, container: JbContainer) -> None:
-        asset_info = AssetInfo.from_user_data(container)
+        asset_info = self.scene.get_asset_from_user_data(container)
         if not asset_info:
-            logger.error(
-                "Invalid asset information on container: %s", container.GetName()
-            )
+            logger.error("Invalid asset information on container: %s", container.GetName())
             return
 
         if not confirm(
@@ -41,17 +44,10 @@ class JbAssetExporter:
 
         objects = self.scene.get_objects_recursive(container)
         if not objects:
-            logger.error(
-                "Container '%s' has no objects for export.", container.GetName()
-            )
+            logger.error("Container '%s' has no objects for export.", container.GetName())
             return
 
-        asset = self.api.get_asset(
-            asset_info.pack_name,
-            asset_info.asset_name,
-            asset_info.database_name,
-            [AssetFile(asset_type=asset_info.asset_type)],
-        )
+        asset = self.api.get_asset_by_info(asset_info)
         if not asset or not asset.files:
             logger.error("Failed to fetch asset '%s'.", asset_info.asset_name)
             return
@@ -100,6 +96,4 @@ class JbAssetExporter:
         for file in asset.files:
             container, _ = self.scene.get_or_create_asset_container(asset, file)
             self.scene.move_objects_to_container(objects, container)
-            logger.info(
-                "Asset '%s' created with type '%s'.", asset.asset_name, file.asset_type
-            )
+            logger.info("Asset '%s' created with type '%s'.", asset.asset_name, file.asset_type)

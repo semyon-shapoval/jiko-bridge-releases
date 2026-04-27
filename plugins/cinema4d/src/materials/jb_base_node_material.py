@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import c4d
 import maxon
-from src.materials import JbBaseMaterial
-from src import get_logger
+from src.materials.jb_base_material import JbBaseMaterial
+from src.jb_logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -141,7 +141,7 @@ class JbBaseNodeMaterial(JbBaseMaterial):
         for child in inputs.GetChildren():
             try:
                 child_id = str(child.GetId())
-                if child_id == port_id or child_id == short_id:
+                if child_id in (port_id, short_id):
                     return child
             except (RuntimeError, TypeError, AttributeError):
                 continue

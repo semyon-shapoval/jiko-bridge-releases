@@ -1,4 +1,10 @@
+"""
+Redshift node material implementation for Cinema 4D.
+Code by Semyon Shapoval, 2026
+"""
+
 from __future__ import annotations
+
 import maxon
 from src.materials.jb_base_node_material import JbBaseNodeMaterial
 

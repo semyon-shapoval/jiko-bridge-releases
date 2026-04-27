@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from typing import Optional
 
 import c4d
-from src.scene import JbSceneFile
+from src.scene.jb_scene_file import JbSceneFile
 
 
 class JbSceneTemp(JbSceneFile):

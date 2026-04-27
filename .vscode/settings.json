@@ -1,5 +1,11 @@
 {
+  "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+  "mypy-type-checker.path": [
+    "${workspaceFolder}/venv/Scripts/python.exe",
+    "-m",
+    "mypy"
+  ],
   "python.analysis.extraPaths": [
     "C:\\Program Files\\Maxon Cinema 4D 2023\\resource\\modules\\python\\libs\\python310",
-  ]
+  ],
 }

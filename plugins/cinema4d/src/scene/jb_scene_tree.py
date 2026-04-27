@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Callable
 
 import c4d
-from src.scene import JbSceneBase
+from src.scene.jb_scene_base import JbSceneBase
 
 class JbSceneTree(JbSceneBase):
     """Traversal and querying of Cinema 4D object hierarchies.
@@ -17,10 +17,13 @@ class JbSceneTree(JbSceneBase):
     no document management, no user data.
     """
 
-    @property
-    def doc(self) -> c4d.documents.BaseDocument:
-        """Return the active document."""
-        return c4d.documents.GetActiveDocument()
+    def get_selection(self):
+        """Return the currently selected objects."""
+        return self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
+
+    def get_selection_materials(self):
+        """Return the currently selected materials."""
+        return self.doc.GetActiveMaterials()
 
     def walk(
         self,
