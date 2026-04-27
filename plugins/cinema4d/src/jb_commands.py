@@ -3,8 +3,6 @@ Commands for JB Asset Importer/Exporter plugin in Cinema 4D.
 Code by Semyon Shapoval, 2026
 """
 
-import os
-
 import c4d
 from src.jb_asset_importer import JbAssetImporter
 from src.jb_asset_exporter import JbAssetExporter
@@ -45,8 +43,7 @@ class JbCommandsPopup:
 
     def reload_modules(self):
         """Reload plugin modules."""
-        plugin_dir = os.path.abspath(os.path.dirname(__file__))
-        reload_plugin_modules(plugin_dir)
+        reload_plugin_modules()
         c4d.EventAdd()
 
     def show_popup_menu(self):

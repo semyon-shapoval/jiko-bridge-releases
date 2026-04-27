@@ -15,6 +15,9 @@ logger = get_logger(__name__)
 ASSET_ID_ATTR = "net.maxon.node.attribute.assetid"
 NODE_NAME_ID = "net.maxon.node.base.name"
 
+PortType = str | int
+PortsType = PortType | list[PortType]
+
 
 class JbBaseNodeMaterial:
     """Base node material."""
@@ -25,6 +28,14 @@ class JbBaseNodeMaterial:
     def nodespace_id(self) -> Optional[str]:
         """Returns the node space ID for this material type, or None if not applicable."""
         raise NotImplementedError
+
+    @staticmethod
+    def path_to_url(path: str) -> maxon.Url:
+        """Converts a file path to a maxon.Url."""
+        normalized = path.replace("\\", "/")
+        if not normalized.startswith("/"):
+            normalized = "/" + normalized
+        return maxon.Url(f"file://{normalized}")
 
     @staticmethod
     def ensure_graph(material: c4d.BaseMaterial, nodespace_id: str):
@@ -50,16 +61,6 @@ class JbBaseNodeMaterial:
         except (AttributeError, TypeError, RuntimeError):
             pass
         return node
-
-    def _connect_port(self, out_port, node, port_id: str) -> bool:
-        """Соединяет out_port с входным портом port_id узла node."""
-        if out_port is None or node is None:
-            return False
-        inp = self.get_input_port(node, port_id)
-        if inp is None:
-            return False
-        out_port.Connect(inp)
-        return True
 
     @staticmethod
     def find_nodes_by_asset_id(graph, asset_id: str) -> list:
@@ -105,7 +106,7 @@ class JbBaseNodeMaterial:
         return JbBaseNodeMaterial.add_node(graph, asset_id), True
 
     @staticmethod
-    def get_input_port(node, port_id: str):
+    def get_port(inputs, port_id: PortType):
         """Возвращает входной порт узла.
 
         Стратегия:
@@ -113,7 +114,10 @@ class JbBaseNodeMaterial:
         2. maxon.Id — Arnold и другие сторонние рендеры (оригинальный способ).
         3. Итерация GetChildren() — последний fallback по short ID.
         """
-        inputs = node.GetInputs()
+
+        if isinstance(port_id, int):
+            children = inputs.GetChildren()
+            return children[port_id] if port_id < len(children) else None
 
         try:
             port = inputs.FindChild(maxon.InternedId(port_id))
@@ -142,18 +146,53 @@ class JbBaseNodeMaterial:
         return None
 
     @staticmethod
-    def get_first_output(node):
-        """Returns the first output port of the node, or None if there are no outputs."""
-        outputs = node.GetOutputs().GetChildren()
-        return outputs[0] if outputs else None
+    def get_ports(inputs, port_ids: PortsType):
+        """Traverse node inputs by a chain of port IDs and return the final port."""
+        current = inputs
+
+        if isinstance(port_ids, PortType):
+            port_ids = [port_ids]
+
+        for port_id in port_ids:
+            if current is None:
+                return None
+            current = JbBaseNodeMaterial.get_port(current, port_id)
+            if current is None:
+                return None
+        return current
 
     @staticmethod
-    def path_to_url(path: str) -> maxon.Url:
-        """Converts a file path to a maxon.Url."""
-        normalized = path.replace("\\", "/")
-        if not normalized.startswith("/"):
-            normalized = "/" + normalized
-        return maxon.Url(f"file://{normalized}")
+    def get_input_ports(node, port_ids: PortsType):
+        """Return the input port of a node by ID."""
+        return JbBaseNodeMaterial.get_ports(node.GetInputs(), port_ids)
+
+    @staticmethod
+    def get_output_ports(node, port_ids: PortsType = 0):
+        """Return the output port of a node by ID."""
+        return JbBaseNodeMaterial.get_ports(node.GetOutputs(), port_ids)
+
+    def _disconnect_all(self, port) -> bool:
+        """Disconnects all connections from the given port."""
+        if port is None:
+            return False
+        if port.IsNullValue():
+            return False
+
+        port.RemoveConnections(maxon.PORT_DIR.INPUT, maxon.Wires.All())
+
+        return True
+
+    def _connect_port(self, out_port, node, port_ids: PortsType) -> bool:
+        """Соединяет out_port с входным портом port_id узла node."""
+        if out_port is None or node is None:
+            return False
+        inp = self.get_input_ports(node, port_ids)
+        if inp is None:
+            return False
+
+        self._disconnect_all(inp)
+        out_port.Connect(inp)
+        return True
 
     def _wire_channel(self, channel: str, path: str) -> None:
         """Подключить канал к нужным портам материала."""

@@ -4,9 +4,8 @@ Code by Semyon Shapoval, 2026
 """
 
 from src.jb_api import JbAPI
-from src.jb_asset_model import AssetFile, AssetInfo, AssetModel
+from src.jb_types import AssetFile, AssetInfo, AssetModel, JbContainer, JbObject
 from src.jb_logger import get_logger
-from src.jb_types import JbContainer, JbObject
 from src.jb_utils import confirm
 
 from src.scene.jb_scene import JbScene

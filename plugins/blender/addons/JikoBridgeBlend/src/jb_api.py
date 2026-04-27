@@ -5,7 +5,7 @@ import urllib.error
 import urllib.request
 from typing import List, Optional
 
-from .jb_asset_model import AssetModel
+from .jb_asset_model import AssetModel, AssetFile
 from .jb_logger import get_logger
 
 DEFAULT_PORT = 5174

@@ -4,7 +4,7 @@ Code by Semyon Shapoval, 2026
 """
 
 import c4d
-from src.jb_asset_model import AssetModel, AssetFile
+from src.jb_types import AssetModel, AssetFile
 from src.jb_logger import get_logger
 from src.materials import (
     JbRedshiftNodeMaterial,

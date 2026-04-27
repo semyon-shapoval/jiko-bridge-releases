@@ -6,9 +6,8 @@ Code by Semyon Shapoval, 2026
 import os
 
 from src.jb_api import JbAPI
-from src.jb_asset_model import AssetFile
+from src.jb_types import AssetFile, JbContainer
 from src.jb_logger import get_logger
-from src.jb_types import JbContainer
 from src.jb_utils import confirm
 from src.scene.jb_scene import JbScene
 

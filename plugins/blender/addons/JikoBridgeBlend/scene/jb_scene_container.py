@@ -1,9 +1,9 @@
 import bpy
 from typing import Optional
 
-from ..jb_asset_model import AssetModel
+from ..src.jb_asset_model import AssetModel
 from .jb_scene_temp import JBSceneTemp
-from ..jb_types import JbContainer
+from ..src.jb_types import JbContainer
 
 
 JB_ASSETS_COLLECTION = "Assets"

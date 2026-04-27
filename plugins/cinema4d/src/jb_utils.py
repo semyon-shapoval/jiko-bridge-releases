@@ -4,6 +4,7 @@ Code by Semyon Shapoval, 2026
 """
 
 import os
+from pathlib import Path
 import sys
 import importlib
 from contextlib import contextmanager
@@ -40,28 +41,34 @@ def confirm(message: str) -> bool:
     return c4d.gui.QuestionDialog(message)
 
 
-def reload_plugin_modules(plugin_dir: str) -> None:
+def reload_plugin_modules() -> None:
     """Reload plugin modules to ensure the latest code is used."""
     importlib.invalidate_caches()
+    plugin_dir = Path(os.path.abspath(os.path.dirname(__file__))).parent
 
     plugin_modules = {}
     for name, mod in list(sys.modules.items()):
         mod_file = getattr(mod, "__file__", None)
-        if mod_file is not None and os.path.abspath(mod_file).startswith(
-            os.path.abspath(plugin_dir)
-        ):
+        if mod_file is not None and Path(mod_file).resolve().is_relative_to(plugin_dir.resolve()):
             plugin_modules[name] = mod
 
-    for name in plugin_modules:
-        del sys.modules[name]
+    module_names = sorted(plugin_modules, key=lambda name: name.count("."))
+    for name in reversed(module_names):
+        sys.modules.pop(name, None)
+
+    for name in module_names:
+        try:
+            importlib.import_module(name)
+        except (ImportError, ModuleNotFoundError, RuntimeError, SyntaxError) as e:
+            print(f"Failed to import {name!r}: {e}")
+
+    print(f"{len(plugin_modules)} modules reloaded.")
 
 
 def load_arnold_module():
     """Load Arnold module if it exists in the Cinema 4D library path."""
     try:
-        arnold_folder = os.path.join(
-            c4d.storage.GeGetC4DPath(c4d.C4D_PATH_LIBRARY), "scripts"
-        )
+        arnold_folder = os.path.join(c4d.storage.GeGetC4DPath(c4d.C4D_PATH_LIBRARY), "scripts")
         if os.path.exists(arnold_folder) and arnold_folder not in sys.path:
             sys.path.append(arnold_folder)
     except OSError as e:

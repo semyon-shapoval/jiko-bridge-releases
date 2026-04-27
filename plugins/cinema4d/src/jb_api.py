@@ -11,8 +11,8 @@ import urllib.request
 from typing import List, Optional
 
 from src.jb_logger import get_logger
-from src.jb_asset_model import AssetFile, AssetModel
-from src.jb_asset_model import AssetInfo
+from src.jb_types import AssetFile, AssetModel
+from src.jb_types import AssetInfo
 
 DEFAULT_PORT = 5174
 

@@ -4,7 +4,7 @@ import bpy
 from contextlib import contextmanager
 
 from .jb_scene_file_io import JBSceneFileIO
-from ..jb_logger import get_logger
+from ..src.jb_logger import get_logger
 
 
 logger = get_logger(__name__)

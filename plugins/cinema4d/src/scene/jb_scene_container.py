@@ -7,8 +7,7 @@ from typing import Optional
 
 import c4d
 
-from src.jb_asset_model import AssetFile, AssetModel, AssetInfo
-from src.jb_types import JbContainer
+from src.jb_types import AssetFile, AssetModel, AssetInfo, JbContainer
 from src.scene.jb_scene_tree import JbSceneTree
 
 

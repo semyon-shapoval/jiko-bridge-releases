@@ -4,8 +4,6 @@ Code by Semyon Shapoval, 2026
 """
 
 from __future__ import annotations
-
-import maxon
 from src.materials.jb_base_node_material import JbBaseNodeMaterial
 
 RS_ID = "com.redshift3d.redshift4c4d"
@@ -18,6 +16,7 @@ RS_BUMPMAP = f"{RS_CORE}.bumpmap"
 RS_DISPLACEMENT = f"{RS_CORE}.displacement"
 
 # Порты RS Material
+RS_PORT_SURFACE = f"{RS_OUTPUT}.surface"
 RS_PORT_DIFFUSE = f"{RS_MATERIAL}.diffuse_color"
 RS_PORT_BUMP = f"{RS_MATERIAL}.bump_input"
 RS_PORT_ROUGHNESS = f"{RS_MATERIAL}.refl_roughness"
@@ -38,7 +37,10 @@ class JbRedshiftNodeMaterial(JbBaseNodeMaterial):
 
     @property
     def _material(self):
-        return self.find_or_add_node(self._graph, RS_MATERIAL)[0]
+        node, _ = self.find_or_add_node(self._graph, RS_MATERIAL)
+
+        self._connect_port(self.get_output_ports(node), self._output, RS_PORT_SURFACE)
+        return node
 
     @property
     def _output(self):
@@ -46,59 +48,52 @@ class JbRedshiftNodeMaterial(JbBaseNodeMaterial):
 
     def _make_texture_node(self, channel: str, path: str):
         node = self._make_labeled_node(self._graph, RS_TEX, channel)
-        port = node.GetInputs().FindChild(maxon.InternedId(RS_PORT_TEX_FILE))
+        port = self.get_input_ports(node, [RS_PORT_TEX_FILE, RS_PORT_TEX_PATH_SUB])
         if port is not None:
-            path_port = port.FindChild(maxon.InternedId(RS_PORT_TEX_PATH_SUB))
-            if path_port is not None:
-                path_port.SetDefaultValue(self.path_to_url(path))
-        return node
+            port.SetDefaultValue(self.path_to_url(path))
+        out = self.get_output_ports(node)
+        return out
 
     def _wire_basecolor(self, path) -> None:
-        tex = self._make_texture_node("basecolor", path)
-        tex_out = self.get_first_output(tex)
+        tex_out = self._make_texture_node("basecolor", path)
         if tex_out is None:
             return
         self._connect_port(tex_out, self._material, RS_PORT_DIFFUSE)
 
     def _wire_normal(self, path) -> None:
-        tex = self._make_texture_node("normal", path)
-        tex_out = self.get_first_output(tex)
+        tex_out = self._make_texture_node("normal", path)
         if tex_out is None:
             return
         bump, _ = self.find_or_add_node(self._graph, RS_BUMPMAP)
         self._connect_port(tex_out, bump, RS_PORT_BUMP_IN)
-        bump_out = self.get_first_output(bump)
+        bump_out = self.get_output_ports(bump)
         if bump_out is not None:
             self._connect_port(bump_out, self._material, RS_PORT_BUMP)
 
     def _wire_roughness(self, path) -> None:
-        tex = self._make_texture_node("roughness", path)
-        tex_out = self.get_first_output(tex)
+        tex_out = self._make_texture_node("roughness", path)
         if tex_out is None:
             return
         self._connect_port(tex_out, self._material, RS_PORT_ROUGHNESS)
 
     def _wire_metallic(self, path) -> None:
-        tex = self._make_texture_node("metallic", path)
-        tex_out = self.get_first_output(tex)
+        tex_out = self._make_texture_node("metallic", path)
         if tex_out is None:
             return
         self._connect_port(tex_out, self._material, RS_PORT_METALNESS)
 
     def _wire_emissive(self, path) -> None:
-        tex = self._make_texture_node("emissive", path)
-        tex_out = self.get_first_output(tex)
+        tex_out = self._make_texture_node("emissive", path)
         if tex_out is None:
             return
         self._connect_port(tex_out, self._material, RS_PORT_EMISSIVE)
 
     def _wire_height(self, path) -> None:
-        tex = self._make_texture_node("height", path)
-        tex_out = self.get_first_output(tex)
+        tex_out = self._make_texture_node("height", path)
         if tex_out is None:
             return
         disp, _ = self.find_or_add_node(self._graph, RS_DISPLACEMENT)
         self._connect_port(tex_out, disp, RS_PORT_DISP_TEX)
-        disp_out = self.get_first_output(disp)
+        disp_out = self.get_output_ports(disp)
         if disp_out is not None:
             self._connect_port(disp_out, self._output, RS_PORT_DISP_OUT)

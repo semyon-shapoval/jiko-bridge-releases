@@ -3,8 +3,8 @@ from __future__ import annotations
 import bmesh
 import bpy
 
-from ..jb_asset_model import AssetModel
-from ..jb_logger import get_logger
+from ..src.jb_asset_model import AssetModel
+from ..src.jb_logger import get_logger
 
 from .jb_scene_select import JBSceneSelect
 

@@ -20,5 +20,5 @@ bl_info = {
 
 
 if __name__ == "__main__":
-    from .JikoBridgeBlend import register
+    from .jiko_bridge_blend import register
     register()

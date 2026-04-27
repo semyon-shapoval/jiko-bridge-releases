@@ -1,9 +1,9 @@
 import bpy
 from typing import Optional
 
-from ..jb_asset_model import AssetModel
+from ..src.jb_asset_model import AssetModel
+from ..src.jb_logger import get_logger
 from .jb_scene_container import JBSceneContainer
-from ..jb_logger import get_logger
 
 logger = get_logger(__name__)
 

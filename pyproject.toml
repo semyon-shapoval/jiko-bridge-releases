@@ -20,6 +20,11 @@ files = [
     "tests",
 ]
 
+[[tool.mypy.overrides]]
+module = ["c4d", "c4d.*", "maxon", "maxon.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
 [tool.black]
 line-length = 100
 target-version = ["py310"]

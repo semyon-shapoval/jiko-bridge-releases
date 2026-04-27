@@ -5,11 +5,10 @@ Code by Semyon Shapoval, 2026
 
 # Leaf modules
 from src.jb_logger import get_logger
-from src.jb_types import JbContainer, JbObject
 from src.jb_utils import confirm, reload_plugin_modules, load_arnold_module
 
 # Depends on jb_types
-from src.jb_asset_model import AssetFile, AssetInfo, AssetModel
+from src.jb_types import AssetFile, AssetInfo, AssetModel
 
 # Depends on jb_logger, jb_asset_model
 from src.jb_api import JbAPI
@@ -37,7 +36,4 @@ __all__ = [
     "confirm",
     "reload_plugin_modules",
     "load_arnold_module",
-    # Types
-    "JbContainer",
-    "JbObject",
 ]

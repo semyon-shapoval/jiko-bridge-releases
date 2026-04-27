@@ -1,6 +1,6 @@
 import re
 from typing import List, Optional
-from jb_types import JbContainer
+from plugins.blender.addons.JikoBridgeBlend.src.jb_types import JbContainer
 from .jb_logger import get_logger
 
 logger = get_logger(__name__)

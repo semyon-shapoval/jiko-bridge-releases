@@ -2,7 +2,7 @@ from .jb_api import JB_API
 from .jb_asset_model import AssetModel
 from .jb_logger import get_logger
 
-from .scene.jb_scene import JBScene
+from ..scene.jb_scene import JBScene
 
 logger = get_logger(__name__)
 

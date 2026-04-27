@@ -24,18 +24,33 @@ venv:
 	$(PYTHON) -m pip install --upgrade pip
 	$(PIP) install -r requirements.txt
 
-blend-test:
-	@echo "Running Blender tests..."
-	set BLENDER_USER_SCRIPTS="$(ADDONS_PATH)" && \
-	"$(BLENDER_PATH)" --addons JikoBridgeBlend --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"
+c4d:
+	-make c4d-lint
+	make c4d-typecheck
+
+c4d-lint:
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d
+
+c4d-typecheck:
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d
 
 c4d-test:
 	@echo "Running C4D tests..."
 	set "g_additionalModulePath=$(C4D_PLUGIN_PATH)" && \
 	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
 
-c4d-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d/src
+blend:
+	-make blend-lint
+	make blend-typecheck
 
-c4d-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d/src
+blend-lint:
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/JikoBridgeBlend
+
+blend-typecheck:
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/JikoBridgeBlend
+
+
+blend-test:
+	@echo "Running Blender tests..."
+	set BLENDER_USER_SCRIPTS="$(ADDONS_PATH)" && \
+	"$(BLENDER_PATH)" --addons JikoBridgeBlend --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"

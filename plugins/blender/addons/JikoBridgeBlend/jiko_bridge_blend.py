@@ -1,7 +1,7 @@
 import bpy
-from .jb_asset_importer import JB_AssetImporter
-from .jb_asset_exporter import JB_AssetExporter
-from .jb_commands import JB_PT_Commands, JB_OT_Reload
+from .src.jb_asset_importer import JB_AssetImporter
+from .src.jb_asset_exporter import JB_AssetExporter
+from .src.jb_commands import JB_PT_Commands, JB_OT_Reload
 
 class JB_OT_AssetImport(bpy.types.Operator):
     bl_idname = "jiko_bridge.asset_import"

@@ -7,8 +7,7 @@ import c4d
 
 from src.scene.jb_scene_container import JbSceneContainer
 from src.jb_logger import get_logger
-from src.jb_asset_model import AssetInfo
-from src.jb_types import JbContainer
+from src.jb_types import AssetInfo, JbContainer
 
 logger = get_logger(__name__)
 

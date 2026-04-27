@@ -2,7 +2,7 @@ import bpy
 
 from typing import Optional
 
-from ..jb_logger import get_logger
+from ..src.jb_logger import get_logger
 
 from .jb_material_importer import JBMaterialImporter
 

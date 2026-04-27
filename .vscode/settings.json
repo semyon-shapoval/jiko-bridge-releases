@@ -4,5 +4,4 @@
     "C:\\Program Files\\Maxon Cinema 4D 2023\\resource\\modules\\python\\libs\\python310",
   ],
   "mypy-type-checker.args": ["--config-file", "${workspaceFolder}/pyproject.toml"],
-  "mypy-type-checker.reportingScope": "workspace"
 }
