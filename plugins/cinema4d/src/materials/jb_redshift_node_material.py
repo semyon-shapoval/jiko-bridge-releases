@@ -36,60 +36,69 @@ class JbRedshiftNodeMaterial(JbBaseNodeMaterial):
     def nodespace_id(self) -> str:
         return RS_NODESPACE
 
-    def _get_key_nodes(self, graph) -> dict:
-        return {
-            "material": self.find_node(graph, RS_MATERIAL),
-            "output": self.find_node(graph, RS_OUTPUT),
-        }
+    @property
+    def _material(self):
+        return self.find_or_add_node(self._graph, RS_MATERIAL)[0]
 
-    def _build_default_graph(self, graph) -> dict:
-        material_node, _ = self.find_or_add_node(graph, RS_MATERIAL)
-        output_node, _ = self.find_or_add_node(graph, RS_OUTPUT)
-        return {"material": material_node, "output": output_node}
+    @property
+    def _output(self):
+        return self.find_or_add_node(self._graph, RS_OUTPUT)[0]
 
-    def _make_texture_node(self, graph, channel: str, path: str):
-        node = self._make_labeled_node(graph, RS_TEX, channel)
+    def _make_texture_node(self, channel: str, path: str):
+        node = self._make_labeled_node(self._graph, RS_TEX, channel)
         port = node.GetInputs().FindChild(maxon.InternedId(RS_PORT_TEX_FILE))
         if port is not None:
             path_port = port.FindChild(maxon.InternedId(RS_PORT_TEX_PATH_SUB))
             if path_port is not None:
                 path_port.SetDefaultValue(self.path_to_url(path))
-
         return node
 
-    def _wire_channel(self, channel, path, graph, key_nodes) -> None:
-        material = key_nodes.get("material")
-        output = key_nodes.get("output")
-        tex = self._make_texture_node(graph, channel, path)
+    def _wire_basecolor(self, path) -> None:
+        tex = self._make_texture_node("basecolor", path)
         tex_out = self.get_first_output(tex)
         if tex_out is None:
             return
+        self._connect_port(tex_out, self._material, RS_PORT_DIFFUSE)
 
-        if channel == "basecolor":
-            self._connect_port(tex_out, material, RS_PORT_DIFFUSE)
+    def _wire_normal(self, path) -> None:
+        tex = self._make_texture_node("normal", path)
+        tex_out = self.get_first_output(tex)
+        if tex_out is None:
+            return
+        bump, _ = self.find_or_add_node(self._graph, RS_BUMPMAP)
+        self._connect_port(tex_out, bump, RS_PORT_BUMP_IN)
+        bump_out = self.get_first_output(bump)
+        if bump_out is not None:
+            self._connect_port(bump_out, self._material, RS_PORT_BUMP)
 
-        elif channel == "normal":
-            bump, _ = self.find_or_add_node(graph, RS_BUMPMAP)
-            self._connect_port(tex_out, bump, RS_PORT_BUMP_IN)
-            bump_out = self.get_first_output(bump)
-            if bump_out is not None:
-                self._connect_port(bump_out, material, RS_PORT_BUMP)
+    def _wire_roughness(self, path) -> None:
+        tex = self._make_texture_node("roughness", path)
+        tex_out = self.get_first_output(tex)
+        if tex_out is None:
+            return
+        self._connect_port(tex_out, self._material, RS_PORT_ROUGHNESS)
 
-        elif channel == "roughness":
-            self._connect_port(tex_out, material, RS_PORT_ROUGHNESS)
+    def _wire_metallic(self, path) -> None:
+        tex = self._make_texture_node("metallic", path)
+        tex_out = self.get_first_output(tex)
+        if tex_out is None:
+            return
+        self._connect_port(tex_out, self._material, RS_PORT_METALNESS)
 
-        elif channel == "metallic":
-            self._connect_port(tex_out, material, RS_PORT_METALNESS)
+    def _wire_emissive(self, path) -> None:
+        tex = self._make_texture_node("emissive", path)
+        tex_out = self.get_first_output(tex)
+        if tex_out is None:
+            return
+        self._connect_port(tex_out, self._material, RS_PORT_EMISSIVE)
 
-        elif channel == "emissive":
-            self._connect_port(tex_out, material, RS_PORT_EMISSIVE)
-
-        elif channel == "height":
-            disp, _ = self.find_or_add_node(graph, RS_DISPLACEMENT)
-            self._connect_port(tex_out, disp, RS_PORT_DISP_TEX)
-            disp_out = self.get_first_output(disp)
-            if disp_out is not None:
-                self._connect_port(disp_out, output, RS_PORT_DISP_OUT)
-
-        elif channel in ("opacity", "refraction", "ao"):
-            pass
+    def _wire_height(self, path) -> None:
+        tex = self._make_texture_node("height", path)
+        tex_out = self.get_first_output(tex)
+        if tex_out is None:
+            return
+        disp, _ = self.find_or_add_node(self._graph, RS_DISPLACEMENT)
+        self._connect_port(tex_out, disp, RS_PORT_DISP_TEX)
+        disp_out = self.get_first_output(disp)
+        if disp_out is not None:
+            self._connect_port(disp_out, self._output, RS_PORT_DISP_OUT)

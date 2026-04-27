@@ -62,11 +62,11 @@ class JbMaterialImporter:
 
         material_name = f"{asset.pack_name}__{asset.asset_name}"
 
-        existing = self.find_existing(material_name)
-        if existing:
-            material = renderer.build_graph(existing)
-        else:
-            material = renderer.create(doc, material_name)
+        material = self.find_existing(material_name)
+        if not material:
+            material = c4d.BaseMaterial(c4d.Mmaterial)
+            material.SetName(material_name)
+            doc.InsertMaterial(material)
 
         renderer.apply_channel(material, channel, path)
 

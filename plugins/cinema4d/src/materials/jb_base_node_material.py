@@ -4,10 +4,10 @@ Code by Semyon Shapoval, 2026
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import c4d
 import maxon
-from src.materials.jb_base_material import JbBaseMaterial
 from src.jb_logger import get_logger
 
 logger = get_logger(__name__)
@@ -16,20 +16,15 @@ ASSET_ID_ATTR = "net.maxon.node.attribute.assetid"
 NODE_NAME_ID = "net.maxon.node.base.name"
 
 
-class JbBaseNodeMaterial(JbBaseMaterial):
+class JbBaseNodeMaterial:
     """Base node material."""
 
-    @staticmethod
-    def get_graph(material: c4d.BaseMaterial, nodespace_id: str):
-        """Возвращает граф или None если пространства нет."""
-        try:
-            node_mat = material.GetNodeMaterialReference()
-            if node_mat is None:
-                return None
-            graph = node_mat.GetGraph(maxon.Id(nodespace_id))
-            return None if graph.IsNullValue() else graph
-        except (RuntimeError, TypeError, AttributeError):
-            return None
+    def __init__(self):
+        self._graph = None
+
+    def nodespace_id(self) -> Optional[str]:
+        """Returns the node space ID for this material type, or None if not applicable."""
+        raise NotImplementedError
 
     @staticmethod
     def ensure_graph(material: c4d.BaseMaterial, nodespace_id: str):
@@ -72,9 +67,7 @@ class JbBaseNodeMaterial(JbBaseMaterial):
         При неудаче — fallback через ручной обход дочерних узлов."""
         result: list[object] = []
         try:
-            maxon.GraphModelHelper.FindNodesByAssetId(
-                graph, maxon.Id(asset_id), True, result
-            )
+            maxon.GraphModelHelper.FindNodesByAssetId(graph, maxon.Id(asset_id), True, result)
         except (RuntimeError, TypeError, AttributeError):
             pass
 
@@ -162,65 +155,11 @@ class JbBaseNodeMaterial(JbBaseMaterial):
             normalized = "/" + normalized
         return maxon.Url(f"file://{normalized}")
 
-    # ------------------------------------------------------------------ #
-    #  Интерфейс подкласса (abstract)                                     #
-    # ------------------------------------------------------------------ #
-
-    def _get_key_nodes(self, graph) -> dict:
-        """
-        Найти ключевые узлы в существующем графе.
-        Возвращает словарь, например: {'material': node, 'output': node, ...}
-        """
-        raise NotImplementedError
-
-    def _build_default_graph(self, graph) -> dict:
-        """
-        Создать базовую структуру узлов в новом графе внутри транзакции.
-        Возвращает словарь ключевых узлов.
-        """
-        raise NotImplementedError
-
-    def _wire_channel(
-        self,
-        channel: str,
-        path: str,
-        graph,
-        key_nodes: dict,
-    ) -> None:
+    def _wire_channel(self, channel: str, path: str) -> None:
         """Подключить канал к нужным портам материала."""
-        raise NotImplementedError
-
-    # ------------------------------------------------------------------ #
-    #  Создание нового материала                                          #
-    # ------------------------------------------------------------------ #
-
-    def create(
-        self,
-        doc: c4d.documents.BaseDocument,
-        name: str,
-    ) -> c4d.BaseMaterial:
-        """Create a new material."""
-        material = c4d.BaseMaterial(c4d.Mmaterial)
-        material.SetName(name)
-
-        nodespace = self.nodespace_id()
-        if nodespace is None:
-            return material
-
-        graph = self.ensure_graph(material, nodespace)
-        if graph is None:
-            return material
-
-        with graph.BeginTransaction() as t:
-            self._build_default_graph(graph)
-            t.Commit()
-
-        doc.InsertMaterial(material)
-        return material
-
-    # ------------------------------------------------------------------ #
-    #  Применение канала                                                  #
-    # ------------------------------------------------------------------ #
+        method = getattr(self, f"_wire_{channel}", None)
+        if method is not None:
+            method(path)
 
     def apply_channel(
         self,
@@ -234,23 +173,13 @@ class JbBaseNodeMaterial(JbBaseMaterial):
             logger.error("Node space ID is not defined for this material type.")
             return
 
-        graph = self.get_graph(material, nodespace)
-        if graph is None:
+        self._graph = self.ensure_graph(material, nodespace)
+        if self._graph is None:
             logger.error("Material does not have the expected node space.")
             return
 
-        key_nodes = self._get_key_nodes(graph)
-
-        # Если граф неполный (например, материал создан C4D без наших нодов) —
-        # достраиваем базовую структуру прежде чем подключать каналы.
-        missing = [k for k, v in key_nodes.items() if v is None]
-        if missing:
-            with graph.BeginTransaction() as t:
-                key_nodes = self._build_default_graph(graph)
-                t.Commit()
-
-        with graph.BeginTransaction() as t:
-            self._wire_channel(channel, path, graph, key_nodes)
+        with self._graph.BeginTransaction() as t:
+            self._wire_channel(channel, path)
             t.Commit()
 
         material.Update(True, True)

@@ -34,14 +34,14 @@ class JbStandardNodeMaterial(JbBaseNodeMaterial):
     def nodespace_id(self) -> str:
         return C4D_NODESPACE
 
-    # ------------------------------------------------------------------ #
-    #  Нахождение ключевых нодов                                         #
-    # ------------------------------------------------------------------ #
+    @property
+    def _bsdf(self):
+        nodes = self.find_nodes_by_asset_id(self._graph, C4D_BSDF)
+        return nodes[0] if nodes else None
 
-    @staticmethod
-    def _find_end_node(graph):
-        """Находит end-ноду по instance ID."""
-        for child in graph.GetRoot().GetChildren():
+    @property
+    def _end(self):
+        for child in self._graph.GetRoot().GetChildren():
             try:
                 if str(child.GetId()) == "material":
                     return child
@@ -49,69 +49,57 @@ class JbStandardNodeMaterial(JbBaseNodeMaterial):
                 pass
         return None
 
-    def _get_key_nodes(self, graph) -> dict:
-        bsdf_nodes = self.find_nodes_by_asset_id(graph, C4D_BSDF)
-        return {
-            "bsdf": bsdf_nodes[0] if bsdf_nodes else None,
-            "end": self._find_end_node(graph),
-        }
-
-    def _build_default_graph(self, graph) -> dict:
-        # AddGraph для net.maxon.nodespace.standard уже создаёт BSDF и end-ноду.
-        # Достраивать ничего не нужно — просто возвращаем существующие ноды.
-        return self._get_key_nodes(graph)
-
-    # ------------------------------------------------------------------ #
-    #  Нод изображения                                                   #
-    # ------------------------------------------------------------------ #
-
-    def _make_image_node(self, graph, channel: str, path: str):
-        node = self._make_labeled_node(graph, C4D_IMAGE, channel)
+    def _make_image_node(self, channel: str, path: str):
+        node = self._make_labeled_node(self._graph, C4D_IMAGE, channel)
         port = node.GetInputs().FindChild(PORT_IMG_URL)
         if port is not None and not port.IsNullValue():
             port.SetDefaultValue(self.path_to_url(path))
         return node
 
-    # ------------------------------------------------------------------ #
-    #  Подключение каналов                                               #
-    # ------------------------------------------------------------------ #
+    def _get_img_out(self, img):
+        out = img.GetOutputs().FindChild(PORT_IMG_RESULT)
+        if out is None or out.IsNullValue():
+            out = self.get_first_output(img)
+        return out
 
-    def _wire_channel(self, channel, path, graph, key_nodes) -> None:
-        bsdf = key_nodes.get("bsdf")
-        end = key_nodes.get("end")
-
-        img = self._make_image_node(graph, channel, path)
-
-        # Сначала ищем именованный выход result, иначе берём первый выход
-        img_out = img.GetOutputs().FindChild(PORT_IMG_RESULT)
-        if img_out is None or img_out.IsNullValue():
-            img_out = self.get_first_output(img)
+    def _wire_basecolor(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("basecolor", path))
         if img_out is None:
             return
+        self._connect_port(img_out, self._bsdf, PORT_BSDF_COLOR)
 
-        if channel == "basecolor":
-            self._connect_port(img_out, bsdf, PORT_BSDF_COLOR)
+    def _wire_roughness(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("roughness", path))
+        if img_out is None:
+            return
+        self._connect_port(img_out, self._bsdf, PORT_BSDF_ROUGHNESS)
 
-        elif channel == "roughness":
-            self._connect_port(img_out, bsdf, PORT_BSDF_ROUGHNESS)
+    def _wire_normal(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("normal", path))
+        if img_out is None:
+            return
+        self._connect_port(img_out, self._bsdf, PORT_BSDF_NORMAL)
 
-        elif channel == "normal":
-            self._connect_port(img_out, bsdf, PORT_BSDF_NORMAL)
+    def _wire_emissive(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("emissive", path))
+        if img_out is None:
+            return
+        self._connect_port(img_out, self._end, PORT_MAT_EMISSION)
 
-        elif channel == "metallic":
-            pass
+    def _wire_opacity(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("opacity", path))
+        if img_out is None:
+            return
+        self._connect_port(img_out, self._end, PORT_MAT_ALPHA)
 
-        elif channel == "emissive":
-            self._connect_port(img_out, end, PORT_MAT_EMISSION)
+    def _wire_height(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("height", path))
+        if img_out is None:
+            return
+        self._connect_port(img_out, self._end, PORT_MAT_DISPLACEMENT)
 
-        elif channel == "opacity":
-            self._connect_port(img_out, end, PORT_MAT_ALPHA)
-
-        elif channel == "height":
-            self._connect_port(img_out, end, PORT_MAT_DISPLACEMENT)
-
-        elif channel == "refraction":
-            self._connect_port(img_out, end, PORT_MAT_TRANSPARENCY)
-
-        elif channel == "ao":
-            pass
+    def _wire_refraction(self, path) -> None:
+        img_out = self._get_img_out(self._make_image_node("refraction", path))
+        if img_out is None:
+            return
+        self._connect_port(img_out, self._end, PORT_MAT_TRANSPARENCY)
