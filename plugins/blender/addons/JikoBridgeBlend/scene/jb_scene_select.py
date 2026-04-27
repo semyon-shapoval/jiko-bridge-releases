@@ -45,14 +45,37 @@ class JBSceneSelect(JBSceneTree):
 
         return expanded
 
-    def get_selection(self, context=None, child: bool = False) -> list:
-        """Return the currently selected objects.
-
-        If child=True, include selected objects plus all recursive children.
-        """
+    def get_selected_objects(self, context=None, child: bool = False) -> list:
+        """Return the currently selected objects."""
         ctx = self._get_context(context)
         objects = self._get_selected_objects(ctx)
-        return self._expand_selection(objects) if child else objects
+        if child:
+            objects = self._expand_selection(objects)
+
+        return objects
+    
+    def get_material_from_selected_objects(self, context=None) -> list:
+        """Return materials from selected objects."""
+        ctx = self._get_context(context)
+        objects = self._get_selected_objects(ctx)
+        return self.get_selected_materials(ctx, objects)
+
+    def get_selected_materials(self, context=None, objects=None) -> list:
+        """Return materials from selected objects and material slots."""
+        ctx = self._get_context(context)
+        if objects is None:
+            objects = self.get_selected_objects(ctx)
+        materials = set()
+        for obj in objects:
+            if hasattr(obj.data, "materials"):
+                for mat in obj.data.materials:
+                    if mat is not None:
+                        materials.add(mat)
+        if hasattr(ctx, "selected_materials"):
+            for mat in ctx.selected_materials:
+                if mat is not None:
+                    materials.add(mat)
+        return list(materials)
 
     def get_selected_asset_containers(self, context=None) -> list:
         """Return asset collections from selected instance Empties + active collection."""

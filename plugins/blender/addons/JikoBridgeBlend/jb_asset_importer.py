@@ -1,8 +1,5 @@
-import bpy
-
 from .jb_api import JB_API
 from .jb_asset_model import AssetModel
-from .jb_material_importer import JBMaterialImporter
 from .jb_logger import get_logger
 
 from .scene.jb_scene import JBScene
@@ -14,9 +11,9 @@ class JB_AssetImporter:
     def __init__(self):
         self.api = JB_API()
         self.scene = JBScene()
-        self.material_importer = JBMaterialImporter()
 
     def import_assets(self) -> None:
+        objects = self.scene.get_selected_objects()
         assets = self._collect_assets_for_reimport() or self._collect_active_asset()
 
         if not assets:
@@ -43,7 +40,7 @@ class JB_AssetImporter:
             if not info:
                 continue
             asset = self.api.get_asset(
-                info.pack_name, info.asset_name, info.database_name, info.asset_type
+                info.packName, info.assetName, info.databaseName, info.assetType
             )
             if asset:
                 assets.append(asset)
@@ -54,21 +51,21 @@ class JB_AssetImporter:
         return [asset] if asset else []
 
     def _import_single(self, asset: AssetModel) -> None:
-        match asset.bridge_type:
+        match asset.bridgeType:
             case "model":
                 layout_container = self._create_model(asset)
                 self._convert_to_instances(layout_container)
             case "material":
                 self.material_importer.import_material(asset)
             case _:
-                logger.warning("Unsupported bridge type: %s", asset.bridge_type)
+                logger.warning("Unsupported bridge type: %s", asset.bridgeType)
 
     def _create_model(self, asset: AssetModel):
         container, exists = self.scene.get_or_create_container(asset)
         if exists:
-            self.scene.create_instance(container, asset.asset_name)
+            self.scene.create_instance(container, asset.assetName)
         else:
-            self.scene.import_with_temp(asset.asset_path, container)
+            self.scene.import_with_temp(asset.assetPath, container)
         return container
 
     def _convert_to_instances(self, layout_container) -> None:
@@ -88,15 +85,3 @@ class JB_AssetImporter:
             self.scene.add_instance_to_container(instance, layout_container)
 
         self.scene.cleanup_empty_objects(layout_container)
-
-
-class JB_OT_AssetImport(bpy.types.Operator):
-    bl_idname = "jiko_bridge.asset_import"
-    bl_label = "Import Asset"
-    bl_description = "Import active asset from Jiko Bridge"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        importer = JB_AssetImporter()
-        importer.import_assets()
-        return {"FINISHED"}

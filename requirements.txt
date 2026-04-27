@@ -1,2 +1,3 @@
 stickytape
+mypy
 fake-bpy-module-latest

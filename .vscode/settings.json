@@ -1,0 +1,5 @@
+{
+  "python.analysis.extraPaths": [
+    "C:\\Program Files\\Maxon Cinema 4D 2023\\resource\\modules\\python\\libs\\python310",
+  ]
+}

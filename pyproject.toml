@@ -1,0 +1,39 @@
+[tool.mypy]
+ignore_missing_imports = true
+show_error_codes = true
+pretty = true
+follow_imports = "normal"
+namespace_packages = true
+mypy_path = [
+    "plugins/cinema4d",
+    "plugins/blender/addons",
+    "plugins/3dsmax",
+    "plugins/houdini",
+    "plugins/maya",
+]
+files = [
+    "plugins/cinema4d/src",
+    "plugins/blender/addons/JikoBridgeBlend",
+    "plugins/3dsmax",
+    "plugins/houdini",
+    "plugins/maya",
+    "tests",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+known_first_party = ["src"]
+line_length = 100
+
+[tool.pylint.MASTER]
+extension-pkg-whitelist = ["c4d"]
+ignored-modules = ["c4d"]
+generated-members = ["c4d.*"]
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = ["assignment-from-no-return"]

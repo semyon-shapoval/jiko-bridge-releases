@@ -4,10 +4,8 @@ from typing import Callable
 
 import bpy
 
-from .jb_scene_base import JBSceneBase
 
-
-class JBSceneTree(JBSceneBase):
+class JBSceneTree:
     """Traversal and querying of Blender collection/object hierarchies.
 
     Implements the traversal group of JBSceneBase.

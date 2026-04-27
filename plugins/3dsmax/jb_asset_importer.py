@@ -37,7 +37,7 @@ class JB_AssetImporter:
             return False
 
 
-    def _import_fbx(self, file_path: str) -> bool:
+    def _import_fbx(self, file_path: str):
         """Imports an FBX file"""
         try:
             rt.FBXImporterSetParam("Mode", rt.name("merge"))

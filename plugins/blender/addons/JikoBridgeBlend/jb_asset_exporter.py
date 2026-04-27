@@ -20,7 +20,7 @@ class JB_AssetExporter:
         if asset_container:
             self._update_asset(asset_container)
         else:
-            self._create_new_asset(self.scene.get_selection(context, child=True))
+            self._create_new_asset(self.scene.get_selected_objects(context, child=True))
 
     def _update_asset(self, container) -> None:
         assetInfo = self.scene.get_asset_info(container)
@@ -94,15 +94,3 @@ class JB_AssetExporter:
         container, _ = self.scene.get_or_create_container(asset)
         self.scene.move_objects_to_container(objects, container)
         logger.info("Asset '%s' created.", asset.asset_name)
-
-
-class JB_OT_AssetExport(bpy.types.Operator):
-    bl_idname = "jiko_bridge.asset_export"
-    bl_label = "Export Asset"
-    bl_description = "Export selected objects as a new asset or update existing"
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        exporter = JB_AssetExporter()
-        exporter.export_asset(context)
-        return {"FINISHED"}

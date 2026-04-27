@@ -33,3 +33,6 @@ c4d-test:
 	@echo "Running C4D tests..."
 	set "g_additionalModulePath=$(C4D_PLUGIN_PATH)" && \
 	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
+
+c4d-lint:
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d/src
