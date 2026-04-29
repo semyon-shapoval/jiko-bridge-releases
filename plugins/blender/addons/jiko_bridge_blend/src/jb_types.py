@@ -6,12 +6,11 @@ Code by Semyon Shapoval, 2026
 import re
 from typing import Any, List, Optional
 
-import c4d
+import bpy
 
-JbContainer = c4d.BaseObject
-JbObject = c4d.BaseObject
-JbSource = c4d.documents.BaseDocument
-
+JbContainer = bpy.types.Collection
+JbObject = bpy.types.Object
+JbSource = bpy.types.Context
 
 class AssetInfo:
     """Represents the basic information about an asset."""

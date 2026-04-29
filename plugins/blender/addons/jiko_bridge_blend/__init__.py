@@ -1,3 +1,8 @@
+"""
+Register Jiko Bridge Blender Plugin
+Code by Semyon Shapoval, 2026
+"""
+
 import sys
 import os
 
@@ -16,7 +21,6 @@ bl_info = {
     "doc_url": "https://with-jiko.com",
     "tracker_url": "https://t.me/withjiko",
 }
-
 
 
 if __name__ == "__main__":

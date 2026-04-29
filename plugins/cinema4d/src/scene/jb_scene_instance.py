@@ -6,8 +6,8 @@ Code by Semyon Shapoval, 2026
 import c4d
 
 from src.scene.jb_scene_container import JbSceneContainer
-from src.jb_logger import get_logger
 from src.jb_types import AssetInfo, JbContainer
+from src.jb_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -31,7 +31,7 @@ class JbSceneInstance(JbSceneContainer):
         instance[c4d.INSTANCEOBJECT_RENDERINSTANCE_MODE] = 1
         for key, bc in asset_container.GetUserDataContainer():
             self.set_user_data(instance, bc[c4d.DESC_NAME], asset_container[key])
-        self.doc.InsertObject(instance)
+        self.source.InsertObject(instance)
         instance.SetBit(c4d.BIT_ACTIVE)
         return instance
 

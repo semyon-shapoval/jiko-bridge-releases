@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any, MutableMapping, Optional
 
 import c4d
-from src.jb_logger import get_logger
 from src.scene.jb_scene_instance import JbSceneInstance
+from src.jb_utils import get_logger
 
 logger = get_logger(__name__)
 

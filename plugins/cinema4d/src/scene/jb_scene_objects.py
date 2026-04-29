@@ -4,10 +4,11 @@ Code by Semyon Shapoval, 2026
 """
 
 from __future__ import annotations
-from typing import Callable
+from typing import Callable, Literal
 
 import c4d
 from src.scene.jb_scene_base import JbSceneBase
+
 
 class JbSceneTree(JbSceneBase):
     """Traversal and querying of Cinema 4D object hierarchies.
@@ -17,13 +18,15 @@ class JbSceneTree(JbSceneBase):
     no document management, no user data.
     """
 
-    def get_selection(self):
-        """Return the currently selected objects."""
-        return self.doc.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
-
-    def get_selection_materials(self):
-        """Return the currently selected materials."""
-        return self.doc.GetActiveMaterials()
+    def get_selection(
+        self, selection_type: Literal["objects", "materials"] = "objects"
+    ) -> list[c4d.BaseObject | c4d.BaseMaterial]:
+        """Return the currently selected objects or materials."""
+        if selection_type == "objects":
+            return self.source.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
+        if selection_type == "materials":
+            return self.source.GetActiveMaterials()
+        return []
 
     def walk(
         self,
@@ -49,9 +52,7 @@ class JbSceneTree(JbSceneBase):
             self.walk(child, fn)
             child = child.GetNext()
 
-    def get_children(
-        self, obj: c4d.BaseObject | list[c4d.BaseObject]
-    ) -> list[c4d.BaseObject]:
+    def get_children(self, obj: c4d.BaseObject | list[c4d.BaseObject]) -> list[c4d.BaseObject]:
         """Return a flat list of *obj* and all its descendants."""
         result: list[c4d.BaseObject] = []
         self.walk(obj, result.append)
@@ -69,8 +70,5 @@ class JbSceneTree(JbSceneBase):
     def get_all_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
         """Return every object in *doc* as a flat list."""
         result: list[c4d.BaseObject] = []
-        obj = doc.GetFirstObject()
-        while obj:
-            self.walk(obj, result.append)
-            obj = obj.GetNext()
+        self.walk(self.get_top_objects(doc), result.append)
         return result

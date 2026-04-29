@@ -8,14 +8,14 @@ from __future__ import annotations
 from typing import Optional
 
 import c4d
-from src.jb_logger import get_logger
 from src.scene.jb_material_importer import JbMaterialImporter
 from src.scene.jb_scene_temp import JbSceneTemp
+from src.jb_utils import get_logger
 
 logger = get_logger(__name__)
 
 
-class JbScene(JbMaterialImporter, JbSceneTemp):
+class JbScene(JbSceneTemp, JbMaterialImporter):
     """High-level import / export operations for the active C4D scene."""
 
     def get_materials_from_objects(self, objects: list[c4d.BaseObject]):
@@ -43,7 +43,7 @@ class JbScene(JbMaterialImporter, JbSceneTemp):
                 logger.warning("No objects imported for file: %s", file_path)
                 return
             self.project_scale(tmp_doc, 1)
-            self.copy_context(tmp_doc, self.doc, target)
+            self.copy_context(tmp_doc, self.source, target)
 
     def export_with_temp(self, objects: list, ext: str) -> Optional[str]:
         """Export objects to temp file, replacing instances with placeholders."""
@@ -54,7 +54,7 @@ class JbScene(JbMaterialImporter, JbSceneTemp):
                     self.copy_user_data(linked, obj)
 
         with self.temp_context(
-            doc=self.doc, objects=objects, unit_scale=c4d.DOCUMENT_UNIT_M, debug=False
+            doc=self.source, objects=objects, unit_scale=c4d.DOCUMENT_UNIT_M, debug=False
         ) as tmp_doc:
             if tmp_doc is None:
                 return None

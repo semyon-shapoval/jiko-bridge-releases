@@ -4,6 +4,7 @@ Code by Semyon Shapoval, 2026
 """
 
 import c4d
+from src.jb_types import JbSource
 from src.jb_asset_importer import JbAssetImporter
 from src.jb_asset_exporter import JbAssetExporter
 from src.jb_utils import reload_plugin_modules
@@ -18,10 +19,10 @@ class JbCommandsPopup:
     https://developers.maxon.net/docs/py/2024_3_0/modules/c4d.bitmaps/RESOURCEIMAGE.html
     """
 
-    def __init__(self, doc: c4d.documents.BaseDocument):
-        self.doc = doc
+    def __init__(self, source: JbSource):
+        self.doc = source
         self.asset_import = JbAssetImporter()
-        self.asset_export = JbAssetExporter()
+        self.asset_export = JbAssetExporter(source)
 
     def export_asset(self):
         """Export asset to Jiko Bridge."""
@@ -66,9 +67,8 @@ class JbCommandsPopup:
 class JbCommands:
     """Main command for headless execution."""
 
-    def __init__(self, doc: c4d.documents.BaseDocument):
-        self.doc = doc
-        self._commands = JbCommandsPopup(doc)
+    def __init__(self, source: JbSource):
+        self._commands = JbCommandsPopup(source)
 
     def export_asset(self) -> None:
         """Export asset to Jiko Bridge."""

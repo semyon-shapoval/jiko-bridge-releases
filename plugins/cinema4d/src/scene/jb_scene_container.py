@@ -8,13 +8,13 @@ from typing import Optional
 import c4d
 
 from src.jb_types import AssetFile, AssetModel, AssetInfo, JbContainer
-from src.scene.jb_scene_tree import JbSceneTree
+from plugins.cinema4d.src.scene.jb_scene_objects import JbSceneTree
 
 
 class JbSceneContainer(JbSceneTree):
     """Container and asset management: null objects, user data, collections."""
 
-    def get_or_create_null(
+    def get_or_create_container(
         self, doc: c4d.documents.BaseDocument, name: str
     ) -> tuple[JbContainer, bool]:
         """Ищет или создаёт Null-объект с заданным именем и иконкой."""
@@ -55,12 +55,12 @@ class JbSceneContainer(JbSceneTree):
         self, asset: AssetModel, file: Optional[AssetFile] = None
     ) -> tuple[JbContainer, bool]:
         """Get or create an asset container null with user data from the asset and file."""
-        doc = self.doc
+        doc = self.source
 
-        root_null, _ = self.get_or_create_null(doc, "Assets")
+        root_null, _ = self.get_or_create_container(doc, "Assets")
         self._ensure_protection_tag(root_null)
 
-        asset_null, asset_existed = self.get_or_create_null(
+        asset_null, asset_existed = self.get_or_create_container(
             doc, f"Asset_{asset.pack_name}_{asset.asset_name}"
         )
 

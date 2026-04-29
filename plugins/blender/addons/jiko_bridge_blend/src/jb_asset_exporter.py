@@ -1,14 +1,13 @@
 """
-Asset exporter for Jiko Bridge Cinema 4d
+Asset exporter for Jiko Bridge Blender
 Code by Semyon Shapoval, 2026
 """
 
 from pathlib import Path
-
-from src.jb_api import JbAPI
-from src.jb_types import AssetFile, JbContainer, JbSource
-from src.scene.jb_scene import JbScene
-from src.jb_utils import confirm, get_logger
+from .jb_api import JbAPI
+from .jb_types import AssetFile, JbContainer, JbSource
+from .scene.jb_scene import JbScene
+from .jb_utils import confirm, get_logger
 
 logger = get_logger(__name__)
 
@@ -23,7 +22,7 @@ class JbAssetExporter:
     def export_asset(self) -> None:
         """Export the selected asset or create a new one if no asset container is selected."""
         selected_objects = self.scene.get_selection()
-        asset_containers = self.scene.filter_container_from_objects(selected_objects)
+        asset_containers = self.scene.filter_containers_from_objects(selected_objects)
         if asset_containers:
             for container in asset_containers:
                 self._update_asset(container)
@@ -41,7 +40,7 @@ class JbAssetExporter:
         ):
             return
 
-        objects = self.scene.get_objects_recursive(container)
+        objects = self.scene.get_objects("all", container)
         if not objects:
             logger.error("Container '%s' has no objects for export.", asset_info.asset_name)
             return

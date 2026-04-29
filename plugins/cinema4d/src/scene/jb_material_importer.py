@@ -5,12 +5,12 @@ Code by Semyon Shapoval, 2026
 
 import c4d
 from src.jb_types import AssetModel, AssetFile
-from src.jb_logger import get_logger
 from src.materials import (
     JbRedshiftNodeMaterial,
     JbArnoldNodeMaterial,
     JbStandardNodeMaterial,
 )
+from src.jb_utils import get_logger
 
 ARNOLD_ID = 1029988
 REDSHIFT_ID = c4d.VPrsrenderer
@@ -23,7 +23,6 @@ class JbMaterialImporter:
     """Material importer that handles different renderers."""
 
     def __init__(self):
-        super().__init__()
         self._redshift = JbRedshiftNodeMaterial()
         self._arnold = JbArnoldNodeMaterial()
         self._standard = JbStandardNodeMaterial()

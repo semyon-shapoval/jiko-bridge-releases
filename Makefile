@@ -44,10 +44,10 @@ blend:
 	make blend-typecheck
 
 blend-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/JikoBridgeBlend
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/jiko_bridge_blend
 
 blend-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/JikoBridgeBlend
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/jiko_bridge_blend
 
 
 blend-test:

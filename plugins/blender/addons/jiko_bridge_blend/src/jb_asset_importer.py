@@ -3,11 +3,10 @@ Importer from Jiko Bridge
 Code by Semyon Shapoval, 2026
 """
 
-from src.jb_api import JbAPI
-from src.scene.jb_scene import JbScene
-from src.jb_types import AssetFile, AssetInfo, AssetModel, JbContainer, JbObject
-from src.jb_utils import confirm, get_logger
-
+from .jb_api import JbAPI
+from .scene.jb_scene import JbScene
+from .jb_types import AssetFile, AssetInfo, AssetModel, JbContainer, JbObject, JbSource
+from .jb_utils import confirm, get_logger
 
 logger = get_logger(__name__)
 
@@ -15,9 +14,9 @@ logger = get_logger(__name__)
 class JbAssetImporter:
     """Handles importing assets from Jiko Bridge into scene."""
 
-    def __init__(self):
+    def __init__(self, source: JbSource):
         self.api = JbAPI()
-        self.scene = JbScene()
+        self.scene = JbScene(source)
 
     def import_assets(self) -> None:
         """Imports assets by selection."""
@@ -48,7 +47,7 @@ class JbAssetImporter:
         seen: set[tuple[str, str, str | None]] = set()
 
         for material in materials:
-            mat_name = material.GetName()
+            mat_name = material.name
             asset_info = AssetInfo.from_string(mat_name)
             asset = None
 
@@ -68,7 +67,7 @@ class JbAssetImporter:
 
             if asset:
                 assets.append(asset)
-                material.SetName(f"{asset.pack_name}__{asset.asset_name}")
+                material.name = f"{asset.pack_name}__{asset.asset_name}"
 
         if assets:
             logger.info("Found %d material asset(s) on selected meshes", len(assets))
@@ -77,7 +76,7 @@ class JbAssetImporter:
 
     def _collect_assets_for_reimport(self, objects: list[JbObject]) -> list:
 
-        asset_containers = self.scene.filter_container_from_objects(objects)
+        asset_containers = self.scene.filter_containers_from_objects(objects)
         if not asset_containers:
             return []
 
@@ -108,6 +107,15 @@ class JbAssetImporter:
         for file in asset.files:
             match file.bridge_type:
                 case "model":
+                    if not file.filepath:
+                        logger.error(
+                            "Model file is missing filepath for asset '%s'",
+                            asset.asset_name or "<unknown>",
+                        )
+                        continue
+                    if not asset.asset_name:
+                        logger.error("Asset name missing for model import. Skipping file.")
+                        continue
                     layout_container = self._create_model(asset, file)
                     self._convert_to_instances(layout_container)
                 case "material":
@@ -135,7 +143,7 @@ class JbAssetImporter:
                     self.scene.import_with_temp(file.filepath, asset_container)
 
             instance = self.scene.create_instance(asset_container, child_asset.asset_name)
-            self.scene.set_instance_transform(instance, p["matrix"])
+            self.scene.set_object_transform(instance, p["matrix"])
             self.scene.add_instance_to_container(instance, layout_container)
 
         self.scene.cleanup_empty_objects(layout_container)

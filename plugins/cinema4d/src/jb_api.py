@@ -1,5 +1,5 @@
 """
-Jiko Bridge API module
+Api client to Jiko Bridge
 Code by Semyon Shapoval, 2026
 """
 
@@ -10,9 +10,8 @@ import urllib.error
 import urllib.request
 from typing import List, Optional
 
-from src.jb_logger import get_logger
-from src.jb_types import AssetFile, AssetModel
-from src.jb_types import AssetInfo
+from src.jb_utils import get_logger
+from src.jb_types import AssetFile, AssetModel, AssetInfo
 
 DEFAULT_PORT = 5174
 

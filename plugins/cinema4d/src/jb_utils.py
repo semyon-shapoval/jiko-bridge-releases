@@ -4,19 +4,37 @@ Code by Semyon Shapoval, 2026
 """
 
 import os
-from pathlib import Path
 import sys
+import logging
 import importlib
+from pathlib import Path
 from contextlib import contextmanager
 
 import c4d
 
 
+def get_logger(name: str) -> logging.Logger:
+    """Get a logger."""
+    logger = logging.getLogger(name)
+
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "[Jiko Bridge] %(levelname)s [%(name)s] %(message)s", datefmt="%H:%M:%S"
+    )
+
+    console = logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+    return logger
+
+
 def is_headless() -> bool:
-    """
-    Headless-режим: c4dpy или Cinema 4D Commandline.
-    """
-    # Для c4dpy — имя исполняемого содержит "c4dpy"
+    """Headless-режим: c4dpy или Cinema 4D Commandline."""
     executable = sys.argv[0].lower() if sys.argv else ""
     return "c4dpy" in executable
 
