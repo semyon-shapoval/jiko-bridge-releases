@@ -10,7 +10,7 @@ from .jb_base_node_material import JBBaseNodeMaterial
 logger = get_logger(__name__)
 
 NODE_OUTPUT = "ShaderNodeOutputMaterial"
-NODE_OUTPUT_NAME = "shader_output"
+NODE_OUTPUT_NAME = "Material Output"
 
 NODE_BSDF = "ShaderNodeBsdfPrincipled"
 NODE_BSDF_NAME = "Principled BSDF"

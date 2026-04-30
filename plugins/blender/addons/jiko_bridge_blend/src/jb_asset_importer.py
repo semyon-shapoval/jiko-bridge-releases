@@ -5,21 +5,23 @@ Code by Semyon Shapoval, 2026
 
 from .jb_api import JbAPI
 from .scene.jb_scene import JbScene
-from .jb_types import AssetFile, AssetInfo, AssetModel, JbContainer, JbObject, JbSource
-from .jb_utils import confirm, get_logger
+from .jb_protocols import JbAssetImporterProtocol
+from .materials.jb_material_importer import JbMaterialImporter
+from .jb_types import AssetInfo, AssetModel, JbContainer, JbSource
+from .jb_utils import get_logger
 
 logger = get_logger(__name__)
 
 
-class JbAssetImporter:
+class JbAssetImporter(JbAssetImporterProtocol):
     """Handles importing assets from Jiko Bridge into scene."""
 
     def __init__(self, source: JbSource):
         self.api = JbAPI()
         self.scene = JbScene(source)
+        self.materials = JbMaterialImporter()
 
     def import_assets(self) -> None:
-        """Imports assets by selection."""
         objects = self.scene.get_selection()
 
         assets = (
@@ -35,7 +37,7 @@ class JbAssetImporter:
         for asset in assets:
             self._import_single(asset)
 
-    def _collect_materials(self, objects: list[JbObject]) -> list:
+    def _collect_materials(self, objects) -> list:
         materials = list(self.scene.get_materials_from_objects(objects)) + list(
             self.scene.get_selection("materials")
         )
@@ -74,21 +76,16 @@ class JbAssetImporter:
 
         return assets
 
-    def _collect_assets_for_reimport(self, objects: list[JbObject]) -> list:
+    def _collect_assets_for_reimport(self, objects) -> list:
 
         asset_containers = self.scene.filter_containers_from_objects(objects)
         if not asset_containers:
             return []
 
-        if not confirm(
-            f"Reimport existing assets?\n{len(asset_containers)} asset(s) will be reimported"
-        ):
-            return []
-
         assets = []
         for container in asset_containers:
             self.scene.clear_container(container)
-            asset_info = self.scene.get_asset_from_user_data(container)
+            asset_info = self.scene.get_asset_data_from_container(container)
             if not asset_info:
                 continue
             asset = self.api.get_asset_by_info(asset_info)
@@ -96,7 +93,7 @@ class JbAssetImporter:
                 assets.append(asset)
         return assets
 
-    def _collect_active_asset(self, objects: list[JbObject]) -> list:
+    def _collect_active_asset(self, objects) -> list:
         if objects:
             return []
 
@@ -119,11 +116,11 @@ class JbAssetImporter:
                     layout_container = self._create_model(asset, file)
                     self._convert_to_instances(layout_container)
                 case "material":
-                    self.scene.import_material(asset, file)
+                    self.materials.import_material(asset, file)
                 case _:
                     logger.warning("Unsupported bridge type: %s", file.bridge_type)
 
-    def _create_model(self, asset: AssetModel, file: AssetFile):
+    def _create_model(self, asset, file):
         container, exists = self.scene.get_or_create_asset_container(asset, file)
         if exists:
             self.scene.create_instance(container, asset.asset_name)
@@ -133,7 +130,7 @@ class JbAssetImporter:
 
     def _convert_to_instances(self, layout_container: JbContainer) -> None:
         for p in self.scene.extract_placeholders(layout_container):
-            child_asset = self.api.get_asset(p["packName"], p["assetName"])
+            child_asset = self.api.get_asset(p["pack"], p["asset"])
             if not child_asset:
                 continue
 
@@ -143,7 +140,7 @@ class JbAssetImporter:
                     self.scene.import_with_temp(file.filepath, asset_container)
 
             instance = self.scene.create_instance(asset_container, child_asset.asset_name)
-            self.scene.set_object_transform(instance, p["matrix"])
+            self.scene.set_object_transform(instance, p["transform"])
             self.scene.add_instance_to_container(instance, layout_container)
 
         self.scene.cleanup_empty_objects(layout_container)

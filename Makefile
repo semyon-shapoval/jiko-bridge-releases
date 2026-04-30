@@ -43,14 +43,19 @@ blend:
 	-make blend-lint
 	make blend-typecheck
 
+blend-run:
+	@echo "Running Blender..."
+	set "BLENDER_USER_SCRIPTS=$(ADDONS_PATH)" && \
+	"$(BLENDER_PATH)" --addons $(ADDON_NAME)
+
 blend-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/jiko_bridge_blend
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/$(ADDON_NAME)
 
 blend-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/jiko_bridge_blend
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/$(ADDON_NAME)
 
 
 blend-test:
 	@echo "Running Blender tests..."
-	set BLENDER_USER_SCRIPTS="$(ADDONS_PATH)" && \
-	"$(BLENDER_PATH)" --addons JikoBridgeBlend --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"
+	set "BLENDER_USER_SCRIPTS=$(ADDONS_PATH)" && \
+	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"

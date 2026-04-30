@@ -4,15 +4,17 @@ Code by Semyon Shapoval, 2026
 """
 
 from pathlib import Path
+
 from .jb_api import JbAPI
-from .jb_types import AssetFile, JbContainer, JbSource
+from .jb_types import AssetFile, JbSource
+from .jb_protocols import JbAssetExporterProtocol
 from .scene.jb_scene import JbScene
-from .jb_utils import confirm, get_logger
+from .jb_utils import get_logger
 
 logger = get_logger(__name__)
 
 
-class JbAssetExporter:
+class JbAssetExporter(JbAssetExporterProtocol):
     """Export asset class"""
 
     def __init__(self, source: JbSource):
@@ -29,15 +31,10 @@ class JbAssetExporter:
         else:
             self._create_new_asset(selected_objects)
 
-    def _update_asset(self, container: JbContainer) -> None:
-        asset_info = self.scene.get_asset_from_user_data(container)
+    def _update_asset(self, container) -> None:
+        asset_info = self.scene.get_asset_data_from_container(container)
         if not asset_info:
             logger.error("Invalid asset information")
-            return
-
-        if not confirm(
-            f"Update asset '{asset_info.asset_name}'?\nThis will overwrite the existing file."
-        ):
             return
 
         objects = self.scene.get_objects("all", container)
@@ -88,12 +85,7 @@ class JbAssetExporter:
             else:
                 logger.error("Failed to update asset '%s'.", asset_info.asset_name)
 
-    def _create_new_asset(self, objects: list) -> None:
-        if not confirm(
-            "Create new asset from selected objects? Go to Jiko Bridge app to finish setup."
-        ):
-            return
-
+    def _create_new_asset(self, objects) -> None:
         filepath = self.scene.export_with_temp(objects, ".fbx")
         if not filepath:
             logger.error("Export failed.")

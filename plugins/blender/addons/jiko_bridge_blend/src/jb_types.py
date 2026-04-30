@@ -5,12 +5,17 @@ Code by Semyon Shapoval, 2026
 
 import re
 from typing import Any, List, Optional
+import mathutils
 
 import bpy
 
 JbContainer = bpy.types.Collection
 JbObject = bpy.types.Object
 JbSource = bpy.types.Context
+JbMaterial = bpy.types.Material
+JbScene = bpy.types.Scene
+JbMatrix = mathutils.Matrix
+
 
 class AssetInfo:
     """Represents the basic information about an asset."""

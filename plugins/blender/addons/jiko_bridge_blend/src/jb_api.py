@@ -8,9 +8,11 @@ import os
 import platform
 import urllib.error
 import urllib.request
-from typing import List, Optional
+from typing import Optional
 
-from .jb_types import AssetModel, AssetFile, AssetInfo
+
+from .jb_types import AssetModel, AssetFile
+from .jb_protocols import JbAPIProtocol
 from .jb_utils import get_logger
 
 DEFAULT_PORT = 5174
@@ -39,7 +41,7 @@ def _get_port() -> int:
     return DEFAULT_PORT
 
 
-class JbAPI:
+class JbAPI(JbAPIProtocol):
     """Client for communicating with the Jiko Bridge API server."""
 
     def __init__(self, host: str = "localhost", port: Optional[int] = None):
@@ -82,13 +84,8 @@ class JbAPI:
         return self._asset_from_response(self._request("/api/asset/active"))
 
     def get_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str] = None,
-        files: Optional[List[AssetFile]] = None,
+        self, pack_name, asset_name, database_name=None, files=None
     ) -> Optional[AssetModel]:
-        """Fetches a specific asset by its identifiers."""
         payload: dict = {"packName": pack_name, "assetName": asset_name}
         if database_name:
             payload["databaseName"] = database_name
@@ -96,8 +93,7 @@ class JbAPI:
             payload["files"] = [file.to_dict() for file in files]
         return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
 
-    def get_asset_by_info(self, asset_info: AssetInfo) -> Optional[AssetModel]:
-        """Fetches an asset using an AssetInfo object."""
+    def get_asset_by_info(self, asset_info) -> Optional[AssetModel]:
         return self.get_asset(
             asset_info.pack_name,
             asset_info.asset_name,
@@ -105,17 +101,12 @@ class JbAPI:
             [AssetFile(asset_type=asset_info.asset_type)],
         )
 
-    def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
-        """Searches for an asset by a free-form key."""
+    def get_asset_by_search(self, search_key) -> Optional[AssetModel]:
         payload: dict = {"searchKey": search_key}
         return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
 
     def create_asset(
-        self,
-        files: List[AssetFile],
-        pack_name: Optional[str] = None,
-        asset_name: Optional[str] = None,
-        database_name: Optional[str] = None,
+        self, files, pack_name=None, asset_name=None, database_name=None
     ) -> Optional[AssetModel]:
         """Creates a new asset with the given files and optional metadata."""
         payload: dict = {"files": [file.to_dict() for file in files]}
@@ -131,16 +122,11 @@ class JbAPI:
         )
 
     def update_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str] = None,
-        files: Optional[List[AssetFile]] = None,
-    ) -> Optional[dict]:
-        """Updates an existing asset's files and/or metadata."""
+        self, pack_name, asset_name, database_name=None, files=None
+    ) -> Optional[AssetModel]:
         payload: dict = {"packName": pack_name, "assetName": asset_name}
         if files is not None:
             payload["files"] = [file.to_dict() for file in files]
         if database_name:
             payload["databaseName"] = database_name
-        return self._request("/api/asset/update", payload, method="POST")
+        return self._asset_from_response(self._request("/api/asset/update", payload, method="POST"))

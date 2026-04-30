@@ -8,12 +8,12 @@ from typing import Optional
 import bpy
 from ..jb_types import AssetModel, AssetFile
 from ..jb_utils import get_logger
-from ..materials.jb_standard_material import JBStandardMaterial
+from .jb_standard_material import JBStandardMaterial
 
 logger = get_logger(__name__)
 
 
-class JBMaterialImporter:
+class JbMaterialImporter:
     """Material importer that handles Blender materials."""
 
     def find_existing(self, name: str) -> Optional[bpy.types.Material]:
@@ -33,6 +33,10 @@ class JBMaterialImporter:
         material = self.find_existing(material_name)
         if not material:
             material = bpy.data.materials.new(name=material_name)
+
+        if material is None:
+            logger.error("Failed to create material: %s", material_name)
+            return
 
         standard = JBStandardMaterial(material)
         standard.apply_channel(channel, path)

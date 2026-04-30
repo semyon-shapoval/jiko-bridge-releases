@@ -29,15 +29,7 @@ def get_logger(name: str) -> logging.Logger:
     return logger
 
 
-def confirm(_message: str) -> bool:
-    """Always returns True until a Blender dialog is implemented.
-
-    TODO: implement a proper Blender invoke()/popup dialog.
-    """
-    return True
-
-
-def reload_plugin_modules(addon_module_name: str = "JikoBridgeBlend") -> None:
+def reload_plugin_modules(addon_module_name: str = "jiko_bridge_blend") -> None:
     """Reload the addon modules by disabling and enabling the addon."""
     addon_utils.disable(addon_module_name)
     to_remove = [k for k in list(sys.modules) if addon_module_name in k]

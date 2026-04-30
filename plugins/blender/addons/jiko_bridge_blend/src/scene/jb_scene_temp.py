@@ -3,38 +3,35 @@ Temporary scene helpers for Jiko Bridge Blender plugin
 Code by Semyon Shapoval, 2026
 """
 
-from typing import Any, Generator, Optional
+from typing import Any
 from contextlib import contextmanager
 
 import bpy
-from .jb_scene_file import JBSceneFile
-from ..jb_utils import get_logger
+
+from .jb_scene_file import JbSceneFile
 
 
-logger = get_logger(__name__)
-
-
-class JBSceneTemp(JBSceneFile):
+class JBSceneTemp(JbSceneFile):
     """Scene-level operations: temporary scene contexts."""
 
-    # ------------------------------------------------------------------
-    # Temporary scene contexts
-    # ------------------------------------------------------------------
     @contextmanager
     def temp_scene(
         self,
-        src: Optional[bpy.types.Collection | list[bpy.types.Object]] = None,
-        unit_scale: float = 1.0,
-        debug: bool = False,
-    ) -> Generator[bpy.types.Scene, None, None]:
-        """Context manager for temporary scenes."""
-        temp: bpy.types.Scene = bpy.data.scenes.new("_jb_temp_scene")
+        src=None,
+        unit_scale=1.0,
+        debug=False,
+    ):
+        temp = bpy.data.scenes.new("_jb_temp_scene")
+
+        if not isinstance(temp, bpy.types.Scene):
+            raise TypeError("temp must be a Scene")
+
         settings = temp.unit_settings
         if settings is not None:
             settings.system = "METRIC"
             settings.scale_length = unit_scale
 
-        new_objects: list[bpy.types.Object] = []
+        new_objects = []
         try:
             ctx = self._make_temp_scene_context(temp)
             with bpy.context.temp_override(**ctx):
@@ -48,14 +45,9 @@ class JBSceneTemp(JBSceneFile):
             if not debug:
                 self._cleanup_temp_scene(temp, new_objects)
             else:
-                logger.debug("Debug: temp scene '%s', %d objects", temp.name, len(new_objects))
+                self.logger.debug("Debug: temp scene '%s', %d objects", temp.name, len(new_objects))
 
-    def _cleanup_temp_scene(
-        self,
-        temp: bpy.types.Scene,
-        objects: list[bpy.types.Object],
-    ) -> None:
-        """Remove temp scene and all copied objects."""
+    def _cleanup_temp_scene(self, temp, objects) -> None:
         try:
             for obj in list(objects):
                 obj.use_fake_user = False
@@ -66,11 +58,11 @@ class JBSceneTemp(JBSceneFile):
                     try:
                         bpy.data.meshes.remove(data)
                     except RuntimeError as exc:
-                        logger.warning("Mesh cleanup failed: %s", exc)
+                        self.logger.warning("Mesh cleanup failed: %s", exc)
             bpy.data.scenes.remove(temp)
             bpy.data.orphans_purge()
         except RuntimeError as exc:
-            logger.error("Cleanup failed '%s': %s", getattr(temp, "name", ""), exc)
+            self.logger.error("Cleanup failed '%s': %s", getattr(temp, "name", ""), exc)
 
     def _make_temp_scene_context(self, scene: bpy.types.Scene) -> dict:
         """Build a valid Blender override context for temp scene operations."""
@@ -151,7 +143,7 @@ class JBSceneTemp(JBSceneFile):
                     if data is not None:
                         new_obj.data = data.copy()
                 except RuntimeError as e:
-                    logger.warning("Failed to copy data for object '%s': %s", obj.name, e)
+                    self.logger.warning("Failed to copy data for object '%s': %s", obj.name, e)
 
             dst.objects.link(new_obj)
             if parent is not None:

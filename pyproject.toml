@@ -41,4 +41,4 @@ ignored-modules = ["c4d", "maxon"]
 generated-members = ["c4d.*"]
 
 [tool.pylint."MESSAGES CONTROL"]
-disable = ["assignment-from-no-return", "too-few-public-methods"]
+disable = ["too-few-public-methods"]

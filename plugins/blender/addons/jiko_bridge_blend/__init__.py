@@ -22,7 +22,8 @@ bl_info = {
     "tracker_url": "https://t.me/withjiko",
 }
 
+from .jiko_bridge_blend import register, unregister  # pylint: disable=wrong-import-position
+
 
 if __name__ == "__main__":
-    from .jiko_bridge_blend import register
     register()

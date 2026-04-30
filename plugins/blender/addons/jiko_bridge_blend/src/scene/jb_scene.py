@@ -3,42 +3,52 @@ Scene management for Jiko Bridge Blender plugin
 Code by Semyon Shapoval, 2026
 """
 
+from logging import Logger
 from typing import Optional
 
 import bpy
-from .jb_material_importer import JBMaterialImporter
+from ..jb_types import JbSource
 from .jb_scene_temp import JBSceneTemp
 from ..jb_utils import get_logger
 
-logger = get_logger(__name__)
 
-
-class JbScene(JBSceneTemp, JBMaterialImporter):
+class JbScene(JBSceneTemp):
     """High-level operations for the active Blender scene."""
 
-    def import_with_temp(self, file_path: str, target: bpy.types.Collection) -> None:
-        """Import file into temp scene, then copy to target collection."""
+    def __init__(self, source):
+        super().__init__()
+        self._logger = get_logger(__name__)
+        self._source = source
+
+    @property
+    def logger(self) -> Logger:
+        return self._logger
+
+    @property
+    def source(self) -> JbSource:
+        if self._source is not None:
+            return self._source
+        return bpy.context
+
+    def import_with_temp(self, file_path, target) -> None:
         with self.temp_scene(debug=False) as temp:
             if not self.import_file(file_path):
-                logger.warning("No objects imported for file: %s", file_path)
+                self.logger.warning("No objects imported for file: %s", file_path)
                 return
             root_objects = self.get_objects("top", temp.collection)
             if not root_objects:
-                logger.warning("No root objects found in imported scene for file: %s", file_path)
+                self.logger.warning(
+                    "No root objects found in imported scene for file: %s", file_path
+                )
                 return
             self.copy_recursive(root_objects, target)
 
-    def export_with_temp(
-        self,
-        src: bpy.types.Collection | list[bpy.types.Object],
-        ext: str,
-    ) -> Optional[str]:
-        """Copy objects to isolated scene, replace instances, export."""
+    def export_with_temp(self, src, ext) -> Optional[str]:
         with self.temp_scene(src, debug=False) as temp:
             col = temp.collection
             if not col or not col.objects:
-                logger.warning("No objects to export.")
+                self.logger.warning("No objects to export.")
                 return None
             copies = list(col.objects)
-            self._replace_instances_with_placeholders(copies, temp)
+            self.replace_instances_with_placeholders(copies, temp)
             return self.export_file(ext)

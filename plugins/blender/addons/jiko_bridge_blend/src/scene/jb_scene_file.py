@@ -4,24 +4,27 @@ Code by Semyon Shapoval, 2026
 """
 
 import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Optional
 
 import bpy
-from .jb_scene_instance import JBSceneInstance
-from ..jb_utils import get_logger
 
-logger = get_logger(__name__)
+from .jb_scene_instance import JbSceneInstance
 
 
-class JBSceneFile(JBSceneInstance):
+class JbSceneFile(JbSceneInstance):
     """File import/export layer in the scene hierarchy."""
 
-    def import_file(self, file_path: str) -> bool:
-        """Imports a file into the Blender scene."""
+    def __init__(self):
+        base = os.path.join(tempfile.gettempdir(), "jiko-bridge")
+        os.makedirs(base, exist_ok=True)
+        self.cache_path = base
+
+    def import_file(self, file_path) -> bool:
         if not os.path.exists(file_path):
-            logger.error("Import file not found: %s", file_path)
+            self.logger.error("Import file not found: %s", file_path)
             return False
 
         ext = Path(file_path).suffix.lower()
@@ -37,13 +40,13 @@ class JBSceneFile(JBSceneInstance):
         }.get(ext)
 
         if not handler:
-            logger.error("Unsupported file extension: %s", ext)
+            self.logger.error("Unsupported file extension: %s", ext)
             return False
 
         return handler(file_path)
 
-    def _import_fbx(self, file_path: str) -> bool:
-        logger.debug("Importing FBX asset: %s", file_path)
+    def _import_fbx(self, file_path) -> bool:
+        self.logger.debug("Importing FBX asset: %s", file_path)
         try:
             bpy.ops.import_scene.fbx(
                 filepath=file_path,
@@ -51,7 +54,7 @@ class JBSceneFile(JBSceneInstance):
                 automatic_bone_orientation=True,
             )
         except RuntimeError as e:
-            logger.error("FBX import failed: %s", e)
+            self.logger.error("FBX import failed: %s", e)
             return False
         return True
 
@@ -60,7 +63,7 @@ class JBSceneFile(JBSceneInstance):
         try:
             bpy.ops.wm.alembic_import(filepath=file_path, as_background_job=False)
         except RuntimeError as e:
-            logger.error("Alembic import failed: %s", e)
+            self.logger.error("Alembic import failed: %s", e)
             return False
         return True
 
@@ -68,7 +71,7 @@ class JBSceneFile(JBSceneInstance):
         try:
             bpy.ops.wm.obj_import(filepath=file_path)
         except RuntimeError as e:
-            logger.error("OBJ import failed: %s", e)
+            self.logger.error("OBJ import failed: %s", e)
             return False
         return True
 
@@ -76,7 +79,7 @@ class JBSceneFile(JBSceneInstance):
         try:
             bpy.ops.wm.usd_import(filepath=file_path)
         except RuntimeError as e:
-            logger.error("USD import failed: %s", e)
+            self.logger.error("USD import failed: %s", e)
             return False
         return True
 
@@ -84,7 +87,7 @@ class JBSceneFile(JBSceneInstance):
         try:
             bpy.ops.import_scene.gltf(filepath=file_path)
         except RuntimeError as e:
-            logger.error("GLTF import failed: %s", e)
+            self.logger.error("GLTF import failed: %s", e)
             return False
         return True
 
@@ -92,7 +95,7 @@ class JBSceneFile(JBSceneInstance):
         filename = f"tmp_{int(time.time())}{ext}"
         return os.path.join(self.cache_path, filename)
 
-    def export_file(self, ext: str) -> Optional[str]:
+    def export_file(self, ext) -> Optional[str]:
         """Exports the current Blender scene to a file."""
         file_path = self._generate_path(ext)
         handler = {
@@ -104,12 +107,12 @@ class JBSceneFile(JBSceneInstance):
         }.get(ext)
 
         if not handler:
-            logger.error("Unsupported export extension: %s", ext)
+            self.logger.error("Unsupported export extension: %s", ext)
             return None
 
         return handler(file_path)
 
-    def _export_fbx(self, file_path: str) -> Optional[str]:
+    def _export_fbx(self, file_path) -> Optional[str]:
         try:
             bpy.ops.export_scene.fbx(
                 filepath=file_path,
@@ -120,10 +123,10 @@ class JBSceneFile(JBSceneInstance):
                 embed_textures=False,
                 bake_space_transform=False,
             )
-            logger.info("FBX exported: %s", file_path)
+            self.logger.info("FBX exported: %s", file_path)
             return file_path
         except RuntimeError as e:
-            logger.error("FBX export failed: %s", e)
+            self.logger.error("FBX export failed: %s", e)
             return None
 
     def _export_alembic(self, file_path: str) -> Optional[str]:
@@ -133,10 +136,10 @@ class JBSceneFile(JBSceneInstance):
                 selected=False,
                 as_background_job=False,
             )
-            logger.info("Alembic exported: %s", file_path)
+            self.logger.info("Alembic exported: %s", file_path)
             return file_path
         except RuntimeError as e:
-            logger.error("Alembic export failed: %s", e)
+            self.logger.error("Alembic export failed: %s", e)
             return None
 
     def _export_gltf(self, file_path: str) -> Optional[str]:
@@ -146,14 +149,14 @@ class JBSceneFile(JBSceneInstance):
                 use_selection=False,
                 export_format="GLB",
             )
-            logger.info("GLTF exported: %s", file_path)
+            self.logger.info("GLTF exported: %s", file_path)
             return file_path
         except RuntimeError as e:
-            logger.error("GLTF export failed: %s", e)
+            self.logger.error("GLTF export failed: %s", e)
             return None
 
     def _export_obj(self, _file_path: str):
-        logger.warning("OBJ export not implemented yet")
+        self.logger.warning("OBJ export not implemented yet")
 
     def _export_usd(self, _file_path: str):
-        logger.warning("USD export not implemented yet")
+        self.logger.warning("USD export not implemented yet")

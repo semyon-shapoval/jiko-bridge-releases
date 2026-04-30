@@ -8,7 +8,7 @@ from typing import Optional
 import c4d
 
 from src.jb_types import AssetFile, AssetModel, AssetInfo, JbContainer
-from plugins.cinema4d.src.scene.jb_scene_objects import JbSceneTree
+from src.scene.jb_scene_objects import JbSceneTree
 
 
 class JbSceneContainer(JbSceneTree):

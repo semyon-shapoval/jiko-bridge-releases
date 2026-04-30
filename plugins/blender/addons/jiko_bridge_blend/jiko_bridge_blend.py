@@ -18,8 +18,11 @@ class JB_OT_AssetImport(bpy.types.Operator):  # pylint: disable=invalid-name
     bl_description = "Import active asset from Jiko Bridge"
     bl_options = {"REGISTER", "UNDO"}
 
-    def execute(self, _context):
-        importer = JbAssetImporter(_context)
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+        importer = JbAssetImporter(context)
         importer.import_assets()
         return {"FINISHED"}
 
@@ -31,6 +34,9 @@ class JB_OT_AssetExport(bpy.types.Operator):  # pylint: disable=invalid-name
     bl_label = "Export Asset"
     bl_description = "Export selected objects as a new asset or update existing"
     bl_options = {"REGISTER", "UNDO"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
         exporter = JbAssetExporter(context)
@@ -49,12 +55,7 @@ class JB_OT_Reload(bpy.types.Operator):  # pylint: disable=invalid-name
         return {"FINISHED"}
 
 
-classes = [
-    JB_PT_Commands,
-    JB_OT_Reload,
-    JB_OT_AssetExport,
-    JB_OT_AssetImport,
-]
+classes = [JB_PT_Commands, JB_OT_Reload, JB_OT_AssetExport, JB_OT_AssetImport]
 
 
 def register():
