@@ -19,19 +19,19 @@ class JbSceneObjects(JbSceneABC):
             return self.source.GetActiveMaterials()
         return []
 
-    def walk(self, root, fn) -> None:
+    def walk(self, root):
         if root is None:
             return
 
         if isinstance(root, (list, tuple)):
             for o in root:
-                self.walk(o, fn)
+                yield from self.walk(o)
             return
 
-        fn(root)
+        yield root
         child = root.GetDown()
         while child:
-            self.walk(child, fn)
+            yield from self.walk(child)
             child = child.GetNext()
 
     def get_objects(self, root, mode="all") -> list[JbObject]:
@@ -45,11 +45,11 @@ class JbSceneObjects(JbSceneABC):
         if mode in ("top", "all"):
             while obj:
                 result.append(obj)
-                obj = obj.GetNext()
                 if mode == "all":
-                    self.walk(obj, result.append)
+                    result.extend(self.walk(obj.GetDown()))
+                obj = obj.GetNext()
         elif mode == "children":
-            self.walk(obj, result.append)
+            result.extend(self.walk(obj))
 
         return result
 

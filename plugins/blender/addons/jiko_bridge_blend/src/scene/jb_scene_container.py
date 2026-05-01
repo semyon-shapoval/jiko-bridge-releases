@@ -9,7 +9,7 @@ import bpy
 
 
 from .jb_scene_objects import JbSceneObjects
-from ..jb_types import AssetInfo, JbContainer
+from ..jb_types import AssetModel, JbContainer
 
 
 class JbSceneContainer(JbSceneObjects):
@@ -67,17 +67,17 @@ class JbSceneContainer(JbSceneObjects):
         container["jb_asset_type"] = file.asset_type or "" if file else ""
         container["jb_database_name"] = asset.database_name or ""
 
-    def get_asset_data_from_container(self, container) -> Optional[AssetInfo]:
+    def get_asset_data_from_container(self, container) -> Optional[AssetModel]:
         pack_name = container.get("jb_pack_name", None)
         asset_name = container.get("jb_asset_name", None)
         asset_type = container.get("jb_asset_type", None)
         database_name = container.get("jb_database_name", None)
         if not (pack_name and asset_name):
             return None
-        return AssetInfo(
+        return AssetModel(
             pack_name=pack_name,
             asset_name=asset_name,
-            asset_type=asset_type,
+            active_type=asset_type,
             database_name=database_name,
         )
 
@@ -93,7 +93,7 @@ class JbSceneContainer(JbSceneObjects):
 
     def cleanup_empty_objects(self, container) -> None:
         for obj in list(container.objects):
-            if obj.type == "EMPTY" and obj.instance_type != "COLLECTION":
+            if obj.type == "EMPTY" and obj.instance_type != "COLLECTION" and not obj.children:
                 bpy.data.objects.remove(obj, do_unlink=True)
         for child in container.children:
             self.cleanup_empty_objects(child)

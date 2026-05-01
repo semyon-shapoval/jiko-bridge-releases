@@ -35,7 +35,7 @@ class JbScene(JBSceneTemp):
             if not self.import_file(file_path):
                 self.logger.warning("No objects imported for file: %s", file_path)
                 return
-            root_objects = self.get_objects(temp.collection, "top")
+            root_objects = self.get_objects(temp.collection)
             if not root_objects:
                 self.logger.warning(
                     "No root objects found in imported scene for file: %s", file_path

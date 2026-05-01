@@ -5,7 +5,7 @@ Code by Semyon Shapoval, 2026
 
 from abc import ABC, abstractmethod
 from logging import Logger
-from typing import Protocol, Callable, Generator, Literal, Optional, TypedDict
+from typing import Protocol, Generator, Literal, Optional, TypedDict
 
 from src.jb_types import (
     AssetInfo,
@@ -56,8 +56,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     def walk(
         self,
         root: JbContainer | JbObject | list[JbObject],
-        fn: Callable[[JbObject], None],
-    ) -> None:
+    ) -> Generator[JbObject, None, None]:
         """Call *fn* for every object in the root hierarchy (pre-order)."""
 
     @abstractmethod

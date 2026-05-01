@@ -21,6 +21,11 @@ class JbSceneFile(JbSceneInstance):
         self.cache_path = os.path.join(tempfile.gettempdir(), "jiko-bridge")
         os.makedirs(self.cache_path, exist_ok=True)
 
+    def get_temp_path(self, ext: str) -> str:
+        """Generate a unique temporary file path with the given extension."""
+        filename = f"tmp_{int(time.time())}{ext}"
+        return os.path.join(self.cache_path, filename)
+
     def import_file(self, file_path) -> bool:
         if not os.path.exists(file_path):
             self.logger.error("Import file not found: %s", file_path)
@@ -90,13 +95,9 @@ class JbSceneFile(JbSceneInstance):
             return False
         return True
 
-    def _generate_path(self, ext: str) -> str:
-        filename = f"tmp_{int(time.time())}{ext}"
-        return os.path.join(self.cache_path, filename)
-
     def export_file(self, ext) -> Optional[str]:
         """Exports the current Blender scene to a file."""
-        file_path = self._generate_path(ext)
+        file_path = self.get_temp_path(ext)
         handler = {
             ".fbx": self._export_fbx,
             ".abc": self._export_alembic,

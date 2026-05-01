@@ -5,17 +5,15 @@ Code by Semyon Shapoval, 2026
 
 from abc import ABC, abstractmethod
 from logging import Logger
-from typing import Protocol, Callable, Generator, Literal, Optional, TypedDict
+from typing import Protocol, Generator, Literal, Optional, TypedDict
 
 from .jb_types import (
-    AssetInfo,
     AssetFile,
     AssetModel,
     JbContainer,
     JbMaterial,
     JbMatrix,
     JbObject,
-    JbScene,
     JbSource,
 )
 
@@ -23,8 +21,7 @@ from .jb_types import (
 class JbPlaceholderInfo(TypedDict):
     """Represents information about a placeholder object."""
 
-    pack: str
-    asset: str
+    asset: AssetModel
     transform: JbMatrix
 
 
@@ -56,8 +53,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     def walk(
         self,
         root: JbContainer | JbObject | list[JbObject],
-        fn: Callable[[JbObject], None],
-    ) -> None:
+    ) -> Generator[JbObject, None, None]:
         """Call *fn* for every object in the root hierarchy (pre-order)."""
 
     @abstractmethod
@@ -107,7 +103,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         """Store asset info in the container's custom properties."""
 
     @abstractmethod
-    def get_asset_data_from_container(self, container: JbContainer) -> Optional[AssetInfo]:
+    def get_asset_data_from_container(self, container: JbContainer) -> Optional[AssetModel]:
         """Parse asset info from a container's custom properties."""
 
     @abstractmethod
@@ -184,7 +180,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         objects: Optional[JbContainer | list[JbObject]] = None,
         unit_scale: float | int = 1.0,
         debug: bool = False,
-    ) -> Generator[JbScene, None, None]:
+    ) -> Generator[JbSource, None, None]:
         """Context manager for temporary scenes."""
 
     # ------------------------------------------------------------------
@@ -256,8 +252,8 @@ class JbAPIProtocol(Protocol):
     ) -> Optional[AssetModel]:
         """Get Asset by its identifiers."""
 
-    def get_asset_by_info(self, asset_info: AssetInfo) -> Optional[AssetModel]:
-        """Get Asset by an AssetInfo object."""
+    def get_asset_by_model(self, asset_model: AssetModel) -> Optional[AssetModel]:
+        """Get Asset by an AssetModel object."""
 
     def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
         """Search for an Asset by a free-form key."""

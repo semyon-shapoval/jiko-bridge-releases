@@ -52,7 +52,7 @@ def register_keymap():
             "wm.call_menu_pie",
             type="J",
             value="PRESS",
-            ctrl=True,
+            shift=True,
         )
         kmi.properties.name = "JB_MT_PIE_MAIN"
         addon_keymaps.append((km, kmi))

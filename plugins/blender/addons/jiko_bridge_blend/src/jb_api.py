@@ -93,12 +93,12 @@ class JbAPI(JbAPIProtocol):
             payload["files"] = [file.to_dict() for file in files]
         return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
 
-    def get_asset_by_info(self, asset_info) -> Optional[AssetModel]:
+    def get_asset_by_model(self, asset_model) -> Optional[AssetModel]:
         return self.get_asset(
-            asset_info.pack_name,
-            asset_info.asset_name,
-            asset_info.database_name,
-            [AssetFile(asset_type=asset_info.asset_type)],
+            asset_model.pack_name,
+            asset_model.asset_name,
+            asset_model.database_name,
+            [AssetFile(asset_type=asset_model.active_type)],
         )
 
     def get_asset_by_search(self, search_key) -> Optional[AssetModel]:

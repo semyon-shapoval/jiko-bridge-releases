@@ -3,6 +3,7 @@ Types Jiko Bridge
 Code by Semyon Shapoval, 2026
 """
 
+from dataclasses import dataclass, field
 import re
 from typing import Any, List, Optional
 import mathutils
@@ -13,60 +14,16 @@ JbContainer = bpy.types.Collection
 JbObject = bpy.types.Object
 JbSource = bpy.types.Context
 JbMaterial = bpy.types.Material
-JbScene = bpy.types.Scene
 JbMatrix = mathutils.Matrix
 
 
-class AssetInfo:
-    """Represents the basic information about an asset."""
-
-    pack_name: str
-    asset_name: str
-    asset_type: Optional[str]
-    database_name: Optional[str]
-
-    def __init__(
-        self,
-        pack_name: str,
-        asset_name: str,
-        asset_type: Optional[str] = None,
-        database_name: Optional[str] = None,
-    ):
-        self.pack_name = pack_name
-        self.asset_name = asset_name
-        self.asset_type = asset_type
-        self.database_name = database_name
-
-    @classmethod
-    def from_string(cls, value: str):
-        """Parse packName / assetName from a placeholder object/tag name."""
-        normalized = re.sub(r"\.\d+$", "", value)
-        pattern = re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$")
-        m = pattern.match(normalized)
-        if m:
-            return cls(
-                pack_name=m.group("pack"),
-                asset_name=m.group("asset"),
-            )
-        return None
-
-
+@dataclass
 class AssetFile:
     """Represents a file associated with an asset."""
 
-    filepath: Optional[str]
-    asset_type: Optional[str]
-    bridge_type: Optional[str]
-
-    def __init__(
-        self,
-        filepath: Optional[str] = None,
-        asset_type: Optional[str] = None,
-        bridge_type: Optional[str] = None,
-    ):
-        self.filepath = filepath
-        self.asset_type = asset_type
-        self.bridge_type = bridge_type
+    filepath: Optional[str] = None
+    asset_type: Optional[str] = None
+    bridge_type: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -90,25 +47,31 @@ class AssetFile:
         return result
 
 
+@dataclass
 class AssetModel:
     """Represents a complete asset with its metadata and associated files."""
 
-    database_name: Optional[str]
-    pack_name: Optional[str]
-    asset_name: Optional[str]
-    files: List[AssetFile]
+    database_name: Optional[str] = None
+    pack_name: Optional[str] = None
+    asset_name: Optional[str] = None
+    active_type: Optional[str] = None
+    files: List[AssetFile] = field(default_factory=list)
 
-    def __init__(
-        self,
-        database_name: Optional[str] = None,
-        pack_name: Optional[str] = None,
-        asset_name: Optional[str] = None,
-        files: Optional[List[AssetFile]] = None,
-    ):
-        self.database_name = database_name
-        self.pack_name = pack_name
-        self.asset_name = asset_name
-        self.files = files or []
+    def __hash__(self):
+        return hash((self.database_name, self.pack_name, self.asset_name))
+
+    @classmethod
+    def from_string(cls, value: str):
+        """Parse packName / assetName from a placeholder object/tag name."""
+        normalized = re.sub(r"\.\d+$", "", value)
+        pattern = re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$")
+        m = pattern.match(normalized)
+        if m:
+            return cls(
+                pack_name=m.group("pack"),
+                asset_name=m.group("asset"),
+            )
+        return None
 
     @classmethod
     def from_dict(cls, data: dict):

@@ -3,7 +3,7 @@ Material Importer for Jiko Bridge Blender plugin
 Code by Semyon Shapoval, 2026
 """
 
-from typing import Optional
+import re
 
 import bpy
 from ..jb_types import AssetModel, AssetFile
@@ -16,9 +16,13 @@ logger = get_logger(__name__)
 class JbMaterialImporter:
     """Material importer that handles Blender materials."""
 
-    def find_existing(self, name: str) -> Optional[bpy.types.Material]:
-        """Find an existing material by name."""
-        return bpy.data.materials.get(name)
+    def _merge_duplicates(self, material: bpy.types.Material) -> None:
+        """Replace duplicate materials (.001, .002, ...) with the given base material."""
+        pattern = re.compile(r"^" + re.escape(material.name) + r"\.\d+$")
+        duplicates = [m for m in bpy.data.materials if pattern.match(m.name)]
+        for dup in duplicates:
+            dup.user_remap(material)
+            bpy.data.materials.remove(dup)
 
     def import_material(self, asset: AssetModel, file: AssetFile) -> None:
         """Import a single material file into the scene."""
@@ -30,7 +34,7 @@ class JbMaterialImporter:
         path = file.filepath
         material_name = f"{asset.pack_name}__{asset.asset_name}"
 
-        material = self.find_existing(material_name)
+        material = bpy.data.materials.get(material_name)
         if not material:
             material = bpy.data.materials.new(name=material_name)
 
@@ -40,3 +44,4 @@ class JbMaterialImporter:
 
         standard = JBStandardMaterial(material)
         standard.apply_channel(channel, path)
+        self._merge_duplicates(material)

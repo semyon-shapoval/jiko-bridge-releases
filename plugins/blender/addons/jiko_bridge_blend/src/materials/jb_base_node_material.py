@@ -8,8 +8,8 @@ from collections import defaultdict
 
 import bpy
 
-COL_WIDTH = 280
-ROW_HEIGHT = 260
+COL_WIDTH = 300
+ROW_HEIGHT = 320
 
 
 class JBBaseNodeMaterial:
@@ -35,7 +35,19 @@ class JBBaseNodeMaterial:
     def apply_channel(self, channel: str, path: str) -> None:
         """Apply a texture channel to the material."""
         self._wire_channel(channel, path)
+        self.clear_orphans()
         self.auto_layout()
+
+    def clear_orphans(self) -> None:
+        """Remove nodes with no connected inputs or outputs."""
+        to_remove = [
+            node
+            for node in self._nodes
+            if not any(s.is_linked for s in node.inputs)
+            and not any(s.is_linked for s in node.outputs)
+        ]
+        for node in to_remove:
+            self._nodes.remove(node)
 
     def auto_layout(self) -> None:
         """Automatically arranges nodes from left to right based on depth in the graph."""

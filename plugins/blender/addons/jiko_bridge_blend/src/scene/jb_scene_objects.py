@@ -27,30 +27,30 @@ class JbSceneObjects(JbSceneABC):
                         return area, region
         return None
 
-    def walk(self, root, fn) -> None:
+    def walk(self, root):
         seen = set()
 
-        def walk_object(obj: bpy.types.Object) -> None:
+        def walk_object(obj: bpy.types.Object):
             if obj in seen:
                 return
             seen.add(obj)
-            fn(obj)
+            yield obj
             for child in obj.children:
-                walk_object(child)
+                yield from walk_object(child)
 
         if isinstance(root, bpy.types.Collection):
             for obj in root.objects:
-                walk_object(obj)
+                yield from walk_object(obj)
             for child_col in root.children:
-                self.walk(child_col, fn)
+                yield from self.walk(child_col)
             return
 
         if isinstance(root, (list, tuple)):
             for obj in root:
-                self.walk(obj, fn)
+                yield from walk_object(obj)
             return
 
-        walk_object(root)
+        yield from walk_object(root)
 
     def get_objects(self, root=None, mode="all") -> list[JbObject]:
         ctx = self.source
@@ -59,9 +59,7 @@ class JbSceneObjects(JbSceneABC):
             return []
         if mode == "all":
             if root:
-                objects: list[JbObject] = []
-                self.walk(root, objects.append)
-                return objects
+                return list(self.walk(root))
 
             return list(scene.objects)
 
@@ -69,7 +67,8 @@ class JbSceneObjects(JbSceneABC):
             col = root if isinstance(root, bpy.types.Collection) else scene.collection
             if not col:
                 return []
-            return list(col.objects)
+            top_objects = set(col.objects)
+            return [obj for obj in col.objects if obj.parent is None or obj.parent not in top_objects]
         return []
 
     def get_selection(self, select_type="objects") -> list[JbContainer | JbObject | JbMaterial]:
@@ -94,9 +93,7 @@ class JbSceneObjects(JbSceneABC):
                 objects = list(view_layer.objects.selected)  # type: ignore[assignment]
 
             if objects and select_type == "recursive":
-                expanded: list[JbContainer | JbObject | JbMaterial] = []
-                self.walk(objects, expanded.append)
-                objects = expanded
+                objects = list(self.walk(objects))
 
         return objects
 

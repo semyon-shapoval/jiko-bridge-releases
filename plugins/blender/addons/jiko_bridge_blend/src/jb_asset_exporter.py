@@ -59,7 +59,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
             logger.error("Container '%s' has no objects for export.", asset_info.asset_name)
             return
 
-        asset = self.api.get_asset_by_info(asset_info)
+        asset = self.api.get_asset_by_model(asset_info)
         if not asset or not asset.files:
             logger.error("Failed to fetch asset '%s'.", asset_info.asset_name)
             return
