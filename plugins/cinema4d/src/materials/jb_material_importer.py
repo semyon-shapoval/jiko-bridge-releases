@@ -4,7 +4,7 @@ Code by Semyon Shapoval, 2026
 """
 
 import c4d
-from src.jb_types import AssetModel, AssetFile
+from src.jb_types import AssetModel, AssetFile, JbSource
 from src.materials import (
     JbRedshiftNodeMaterial,
     JbArnoldNodeMaterial,
@@ -22,15 +22,20 @@ logger = get_logger(__name__)
 class JbMaterialImporter:
     """Material importer that handles different renderers."""
 
-    def __init__(self):
+    def __init__(self, source: JbSource):
         self._redshift = JbRedshiftNodeMaterial()
         self._arnold = JbArnoldNodeMaterial()
         self._standard = JbStandardNodeMaterial()
+        self._source = source
+
+    @property
+    def source(self) -> JbSource:
+        """Return the active document."""
+        return self._source or c4d.documents.GetActiveDocument()
 
     def find_existing(self, name: str):
         """Find an existing material by name."""
-        doc = c4d.documents.GetActiveDocument()
-        mat = doc.GetFirstMaterial()
+        mat = self.source.GetFirstMaterial()
         while mat:
             if mat.GetName() == name:
                 return mat
@@ -38,8 +43,7 @@ class JbMaterialImporter:
         return None
 
     def _get_material_renderer(self):
-        doc = c4d.documents.GetActiveDocument()
-        render_id = doc.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
+        render_id = self.source.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]
         if render_id == REDSHIFT_ID:
             return self._redshift
         if render_id == ARNOLD_ID:
@@ -54,7 +58,6 @@ class JbMaterialImporter:
             logger.error("Material file is missing type or path")
             return
 
-        doc = c4d.documents.GetActiveDocument()
         renderer = self._get_material_renderer()
         channel = file.asset_type.lower()
         path = file.filepath
@@ -65,7 +68,7 @@ class JbMaterialImporter:
         if not material:
             material = c4d.BaseMaterial(c4d.Mmaterial)
             material.SetName(material_name)
-            doc.InsertMaterial(material)
+            self.source.InsertMaterial(material)
 
         renderer.apply_channel(material, channel, path)
 

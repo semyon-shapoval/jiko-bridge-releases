@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from logging import Logger
 from typing import Protocol, Callable, Generator, Literal, Optional, TypedDict
 
-from .jb_types import (
+from src.jb_types import (
     AssetInfo,
     AssetFile,
     AssetModel,

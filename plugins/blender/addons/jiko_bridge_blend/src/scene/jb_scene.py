@@ -31,20 +31,20 @@ class JbScene(JBSceneTemp):
         return bpy.context
 
     def import_with_temp(self, file_path, target) -> None:
-        with self.temp_scene(debug=False) as temp:
+        with self.temp_source(debug=False) as temp:
             if not self.import_file(file_path):
                 self.logger.warning("No objects imported for file: %s", file_path)
                 return
-            root_objects = self.get_objects("top", temp.collection)
+            root_objects = self.get_objects(temp.collection, "top")
             if not root_objects:
                 self.logger.warning(
                     "No root objects found in imported scene for file: %s", file_path
                 )
                 return
-            self.copy_recursive(root_objects, target)
+            self._copy_source(root_objects, target)
 
     def export_with_temp(self, src, ext) -> Optional[str]:
-        with self.temp_scene(src, debug=False) as temp:
+        with self.temp_source(src, debug=False) as temp:
             col = temp.collection
             if not col or not col.objects:
                 self.logger.warning("No objects to export.")

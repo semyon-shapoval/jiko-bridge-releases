@@ -24,6 +24,9 @@ venv:
 	$(PYTHON) -m pip install --upgrade pip
 	$(PIP) install -r requirements.txt
 
+diff:
+	code --diff "$(C4D_PLUGIN_PATH)/src/jb_protocols.py" "$(BLENDER_PLUGIN_PATH)/src/jb_protocols.py"
+
 c4d:
 	-make c4d-lint
 	make c4d-typecheck
@@ -45,7 +48,7 @@ blend:
 
 blend-run:
 	@echo "Running Blender..."
-	set "BLENDER_USER_SCRIPTS=$(ADDONS_PATH)" && \
+	set "BLENDER_USER_SCRIPTS=$(ROOT_ADDONS_PATH)" && \
 	"$(BLENDER_PATH)" --addons $(ADDON_NAME)
 
 blend-lint:
@@ -57,5 +60,5 @@ blend-typecheck:
 
 blend-test:
 	@echo "Running Blender tests..."
-	set "BLENDER_USER_SCRIPTS=$(ADDONS_PATH)" && \
+	set "BLENDER_USER_SCRIPTS=$(ROOT_ADDONS_PATH)" && \
 	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"

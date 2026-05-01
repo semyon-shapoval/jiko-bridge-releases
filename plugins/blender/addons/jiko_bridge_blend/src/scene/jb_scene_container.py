@@ -52,22 +52,20 @@ class JbSceneContainer(JbSceneObjects):
 
         return col, existed
 
-    def filter_containers_from_objects(self, objects) -> list[JbContainer]:
-        containers: list[JbContainer] = []
-        seen: set = set()
+    def get_containers_from_objects(self, objects) -> list[JbContainer]:
+        containers: set[JbContainer] = set()
         for obj in objects:
-            if obj.instance_type == "COLLECTION" and obj.instance_collection:
-                col = obj.instance_collection
-                if id(col) not in seen and self.get_asset_data_from_container(col):
-                    seen.add(id(col))
-                    containers.append(col)
-        return containers
+            if isinstance(obj, bpy.types.Collection):
+                if self.get_asset_data_from_container(obj):
+                    containers.add(obj)
 
-    def set_asset_data(self, col, asset, file=None) -> None:
-        col["jb_pack_name"] = asset.pack_name or ""
-        col["jb_asset_name"] = asset.asset_name or ""
-        col["jb_asset_type"] = file.asset_type or "" if file else ""
-        col["jb_database_name"] = asset.database_name or ""
+        return list(containers)
+
+    def set_asset_data(self, container, asset, file=None) -> None:
+        container["jb_pack_name"] = asset.pack_name or ""
+        container["jb_asset_name"] = asset.asset_name or ""
+        container["jb_asset_type"] = file.asset_type or "" if file else ""
+        container["jb_database_name"] = asset.database_name or ""
 
     def get_asset_data_from_container(self, container) -> Optional[AssetInfo]:
         pack_name = container.get("jb_pack_name", None)

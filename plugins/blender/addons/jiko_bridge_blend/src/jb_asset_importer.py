@@ -7,7 +7,7 @@ from .jb_api import JbAPI
 from .scene.jb_scene import JbScene
 from .jb_protocols import JbAssetImporterProtocol
 from .materials.jb_material_importer import JbMaterialImporter
-from .jb_types import AssetInfo, AssetModel, JbContainer, JbSource
+from .jb_types import AssetInfo, AssetModel, JbContainer, JbSource, JbMaterial
 from .jb_utils import get_logger
 
 logger = get_logger(__name__)
@@ -22,97 +22,76 @@ class JbAssetImporter(JbAssetImporterProtocol):
         self.materials = JbMaterialImporter()
 
     def import_assets(self) -> None:
-        objects = self.scene.get_selection()
-
-        assets = (
-            self._collect_materials(objects)
-            or self._collect_assets_for_reimport(objects)
-            or self._collect_active_asset(objects)
-        )
-
-        if not assets:
-            logger.warning("No active asset found in selection or database.")
-            return
+        assets = self._collect_assets()
 
         for asset in assets:
             self._import_single(asset)
 
-    def _collect_materials(self, objects) -> list:
-        materials = list(self.scene.get_materials_from_objects(objects)) + list(
-            self.scene.get_selection("materials")
-        )
+    def import_message(self) -> str:
+        materials, containers = self._collect_data()
 
-        if not materials:
-            return []
+        if materials:
+            return (
+                "Import assets for materials?\n"
+                f"{len(materials)} material(s) with asset info found in selection."
+            )
+        if containers:
+            return (
+                "Import assets for asset containers?\n"
+                f"{len(containers)} asset container(s) found in selection."
+            )
+        return "Import active asset from Jiko Bridge."
 
-        assets: list[AssetModel] = []
-        seen: set[tuple[str, str, str | None]] = set()
+    def _collect_data(self) -> tuple[list[JbMaterial], list[JbContainer]]:
+        objects = self.scene.get_selection()
 
-        for material in materials:
-            mat_name = material.name
-            asset_info = AssetInfo.from_string(mat_name)
-            asset = None
+        materials = self.scene.get_materials_from_objects(objects)
+        containers = self.scene.get_containers_from_objects(objects)
 
-            if asset_info is not None:
-                key = (
-                    asset_info.pack_name,
-                    asset_info.asset_name,
-                    asset_info.database_name,
-                )
-                if key in seen:
+        return materials, containers
+
+    def _collect_assets(self) -> list[AssetModel]:
+        assets: set[AssetModel] = set()
+        materials, containers = self._collect_data()
+
+        if materials:
+            for mat in materials:
+                mat_name = mat.name
+                asset_info = AssetInfo.from_string(mat_name)
+                if asset_info:
+                    asset = self.api.get_asset_by_info(asset_info)
+                    if asset:
+                        assets.add(asset)
+                else:
+                    asset = self.api.get_asset_by_search(mat_name)
+                    if asset:
+                        assets.add(asset)
+                        mat.name = f"{asset.pack_name}__{asset.asset_name}"
+            return list(assets)
+
+        if containers:
+            for container in containers:
+                self.scene.clear_container(container)
+                asset_info = self.scene.get_asset_data_from_container(container)
+                if not asset_info:
                     continue
-
-                seen.add(key)
                 asset = self.api.get_asset_by_info(asset_info)
-            else:
-                asset = self.api.get_asset_by_search(mat_name)
+                if asset:
+                    assets.add(asset)
+            return list(assets)
 
+        if not materials and not containers:
+            asset = self.api.get_active_asset()
             if asset:
-                assets.append(asset)
-                material.name = f"{asset.pack_name}__{asset.asset_name}"
+                assets.add(asset)
+            return list(assets)
 
-        if assets:
-            logger.info("Found %d material asset(s) on selected meshes", len(assets))
-
-        return assets
-
-    def _collect_assets_for_reimport(self, objects) -> list:
-
-        asset_containers = self.scene.filter_containers_from_objects(objects)
-        if not asset_containers:
-            return []
-
-        assets = []
-        for container in asset_containers:
-            self.scene.clear_container(container)
-            asset_info = self.scene.get_asset_data_from_container(container)
-            if not asset_info:
-                continue
-            asset = self.api.get_asset_by_info(asset_info)
-            if asset:
-                assets.append(asset)
-        return assets
-
-    def _collect_active_asset(self, objects) -> list:
-        if objects:
-            return []
-
-        asset = self.api.get_active_asset()
-        return [asset] if asset else []
+        return []
 
     def _import_single(self, asset: AssetModel) -> None:
         for file in asset.files:
             match file.bridge_type:
                 case "model":
-                    if not file.filepath:
-                        logger.error(
-                            "Model file is missing filepath for asset '%s'",
-                            asset.asset_name or "<unknown>",
-                        )
-                        continue
-                    if not asset.asset_name:
-                        logger.error("Asset name missing for model import. Skipping file.")
-                        continue
                     layout_container = self._create_model(asset, file)
                     self._convert_to_instances(layout_container)
                 case "material":
@@ -141,6 +120,6 @@ class JbAssetImporter(JbAssetImporterProtocol):
 
             instance = self.scene.create_instance(asset_container, child_asset.asset_name)
             self.scene.set_object_transform(instance, p["transform"])
-            self.scene.add_instance_to_container(instance, layout_container)
+            self.scene.move_objects_to_container(instance, layout_container)
 
         self.scene.cleanup_empty_objects(layout_container)

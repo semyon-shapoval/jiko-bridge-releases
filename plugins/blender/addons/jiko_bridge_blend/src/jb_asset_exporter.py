@@ -1,15 +1,15 @@
 """
-Asset exporter for Jiko Bridge Blender
+Asset exporter for Jiko Bridge
 Code by Semyon Shapoval, 2026
 """
 
 from pathlib import Path
 
 from .jb_api import JbAPI
-from .jb_types import AssetFile, JbSource
-from .jb_protocols import JbAssetExporterProtocol
+from .jb_types import AssetFile, JbMaterial, JbObject, JbSource, JbContainer
 from .scene.jb_scene import JbScene
 from .jb_utils import get_logger
+from .jb_protocols import JbAssetExporterProtocol
 
 logger = get_logger(__name__)
 
@@ -22,14 +22,31 @@ class JbAssetExporter(JbAssetExporterProtocol):
         self.scene = JbScene(source)
 
     def export_asset(self) -> None:
-        """Export the selected asset or create a new one if no asset container is selected."""
-        selected_objects = self.scene.get_selection()
-        asset_containers = self.scene.filter_containers_from_objects(selected_objects)
+        """Export the selected asset or create a new one."""
+        selected_objects, asset_containers = self._collect_data()
         if asset_containers:
             for container in asset_containers:
                 self._update_asset(container)
         else:
             self._create_new_asset(selected_objects)
+
+    def export_message(self) -> str:
+        selected_objects, asset_containers = self._collect_data()
+        if asset_containers:
+            return "Update existing assets?\n" f"{len(asset_containers)} asset(s) will be updated"
+
+        if selected_objects:
+            return (
+                "No asset containers found in selection. "
+                f"Create new asset with {len(selected_objects)} object(s)?"
+            )
+
+        return "Export Blender project."
+
+    def _collect_data(self) -> tuple[list[JbContainer | JbObject | JbMaterial], list[JbContainer]]:
+        selected_objects = self.scene.get_selection()
+        asset_containers = self.scene.get_containers_from_objects(selected_objects)
+        return selected_objects, asset_containers
 
     def _update_asset(self, container) -> None:
         asset_info = self.scene.get_asset_data_from_container(container)
@@ -37,7 +54,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
             logger.error("Invalid asset information")
             return
 
-        objects = self.scene.get_objects("all", container)
+        objects = self.scene.get_objects(container)
         if not objects:
             logger.error("Container '%s' has no objects for export.", asset_info.asset_name)
             return

@@ -3,63 +3,58 @@ High-level scene operations for Cinema 4D.
 Code by Semyon Shapoval, 2026
 """
 
-from __future__ import annotations
-
 from typing import Optional
+from logging import Logger
 
 import c4d
-from src.scene.jb_material_importer import JbMaterialImporter
-from src.scene.jb_scene_temp import JbSceneTemp
+from src.jb_types import JbSource
+from src.scene.jb_scene_file import JbSceneFile
 from src.jb_utils import get_logger
 
-logger = get_logger(__name__)
 
-
-class JbScene(JbSceneTemp, JbMaterialImporter):
+class JbScene(JbSceneFile):
     """High-level import / export operations for the active C4D scene."""
 
-    def get_materials_from_objects(self, objects: list[c4d.BaseObject]):
-        """Extracts materials from the given objects by looking for texture tags."""
-        materials = []
+    def __init__(self, source: JbSource):
+        super().__init__()
+        self._source = source
+        self._logger = get_logger(__name__)
 
-        for obj in objects:
-            if not obj.IsInstanceOf(c4d.Opolygon):
-                continue
+    @property
+    def logger(self) -> Logger:
+        return self._logger
 
-            for tag in obj.GetTags():
-                if not tag.CheckType(c4d.Ttexture):
-                    continue
+    @property
+    def source(self) -> JbSource:
+        """Return the active document."""
+        if self._source is None:
+            self._source = c4d.documents.GetActiveDocument()
+        return self._source
 
-                material = tag[c4d.TEXTURETAG_MATERIAL]
-                if material:
-                    materials.append(material)
-
-        return materials
-
-    def import_with_temp(self, file_path: str, target: c4d.BaseObject) -> None:
+    def import_with_temp(self, file_path, target) -> None:
         """Import file and place objects under container."""
-        with self.temp_context(debug=False) as tmp_doc:
-            if not self.import_file(tmp_doc, file_path):
-                logger.warning("No objects imported for file: %s", file_path)
+        with self.temp_source(debug=False) as tmp_doc:
+            if not self.import_file(file_path):
+                self.logger.warning("No objects imported for file: %s", file_path)
                 return
-            self.project_scale(tmp_doc, 1)
-            self.copy_context(tmp_doc, self.source, target)
+            self._project_scale(tmp_doc, 1)
+            self._copy_source(tmp_doc, self.source, target)
 
-    def export_with_temp(self, objects: list, ext: str) -> Optional[str]:
+    def export_with_temp(self, src, ext) -> Optional[str]:
         """Export objects to temp file, replacing instances with placeholders."""
-        for obj in objects:
+        for obj in src:
             if obj.CheckType(c4d.Oinstance):
                 linked = obj[c4d.INSTANCEOBJECT_LINK]
                 if linked:
-                    self.copy_user_data(linked, obj)
+                    self.copy_asset_data(linked, obj)
 
-        with self.temp_context(
-            doc=self.source, objects=objects, unit_scale=c4d.DOCUMENT_UNIT_M, debug=False
+        with self.temp_source(
+            objects=src,
+            unit_scale=c4d.DOCUMENT_UNIT_M,
+            debug=False,
         ) as tmp_doc:
-            if tmp_doc is None:
-                return None
-            self._replace_instances_with_placeholders(tmp_doc, self.get_all_objects(tmp_doc))
+            self.replace_instances_with_placeholders(tmp_doc, self.get_objects(tmp_doc))
             tmp_doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
-            self.make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
-            self.project_scale(tmp_doc, 0.01)
-            return self.export_file(tmp_doc, ext)
+            self._make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
+            self._project_scale(tmp_doc, 0.01)
+            return self.export_file(ext)

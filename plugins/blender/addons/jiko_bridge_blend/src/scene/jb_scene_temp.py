@@ -3,7 +3,6 @@ Temporary scene helpers for Jiko Bridge Blender plugin
 Code by Semyon Shapoval, 2026
 """
 
-from typing import Any
 from contextlib import contextmanager
 
 import bpy
@@ -15,12 +14,8 @@ class JBSceneTemp(JbSceneFile):
     """Scene-level operations: temporary scene contexts."""
 
     @contextmanager
-    def temp_scene(
-        self,
-        src=None,
-        unit_scale=1.0,
-        debug=False,
-    ):
+    def temp_source(self, objects=None, unit_scale=1.0, debug=False):
+        ctx = self.source
         temp = bpy.data.scenes.new("_jb_temp_scene")
 
         if not isinstance(temp, bpy.types.Scene):
@@ -33,13 +28,10 @@ class JBSceneTemp(JbSceneFile):
 
         new_objects = []
         try:
-            ctx = self._make_temp_scene_context(temp)
-            with bpy.context.temp_override(**ctx):
-                view_layer = temp.view_layers[0]
+            with ctx.temp_override(scene=temp):
                 col = temp.collection
-                if src is not None and col is not None:
-                    new_objects = self.copy_recursive(src, col)
-                view_layer.update()
+                if objects is not None and col is not None:
+                    new_objects = self._copy_source(objects, col)
                 yield temp
         finally:
             if not debug:
@@ -48,86 +40,24 @@ class JBSceneTemp(JbSceneFile):
                 self.logger.debug("Debug: temp scene '%s', %d objects", temp.name, len(new_objects))
 
     def _cleanup_temp_scene(self, temp, objects) -> None:
-        try:
-            for obj in list(objects):
-                obj.use_fake_user = False
-            for obj in list(objects):
-                data = obj.data
-                bpy.data.objects.remove(obj, do_unlink=True)
-                if data is not None and data.users == 0:
-                    try:
-                        bpy.data.meshes.remove(data)
-                    except RuntimeError as exc:
-                        self.logger.warning("Mesh cleanup failed: %s", exc)
-            bpy.data.scenes.remove(temp)
-            bpy.data.orphans_purge()
-        except RuntimeError as exc:
-            self.logger.error("Cleanup failed '%s': %s", getattr(temp, "name", ""), exc)
-
-    def _make_temp_scene_context(self, scene: bpy.types.Scene) -> dict:
-        """Build a valid Blender override context for temp scene operations."""
-        view_layer: bpy.types.ViewLayer = scene.view_layers[0]
-        context: dict[str, Any] = {
-            "scene": scene,
-            "view_layer": view_layer,
-            "collection": scene.collection,
-            "layer_collection": view_layer.layer_collection,
-            "active_layer_collection": view_layer.active_layer_collection,
-            "active_object": None,
-            "selected_objects": [],
-            "active_base": None,
-            "selected_editable_bases": [],
-        }
-
-        depsgraph = getattr(view_layer, "depsgraph", None)
-        if depsgraph is not None:
-            context["depsgraph"] = depsgraph
+        for obj in objects:
+            try:
+                if obj.name in bpy.data.objects:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+            except ReferenceError:
+                continue
 
         try:
-            wm = bpy.context.window_manager
+            if temp.name in bpy.data.scenes:
+                bpy.data.scenes.remove(temp, do_unlink=True)
         except RuntimeError:
-            return context
+            pass
 
-        if wm is None:
-            return context
-
-        context["window_manager"] = wm
-        try:
-            window = wm.windows[0] if len(wm.windows) > 0 else None
-        except RuntimeError:
-            window = None
-
-        if window is None:
-            return context
-
-        context["window"] = window
-        screen = window.screen
-        if screen is None or len(screen.areas) == 0:
-            return context
-
-        area = next((a for a in screen.areas if a.type == "VIEW_3D"), screen.areas[0])
-        if area is not None:
-            context["area"] = area
-            region = next((r for r in area.regions if r.type == "WINDOW"), area.regions[0])
-            if region is not None:
-                context["region"] = region
-
-        try:
-            workspace = window.workspace
-        except RuntimeError:
-            workspace = None
-
-        if workspace is not None:
-            context["workspace"] = workspace
-
-        return context
-
-    def copy_recursive(
+    def _copy_source(
         self,
         src: bpy.types.Collection | list[bpy.types.Object],
         dst: bpy.types.Collection,
     ) -> list[bpy.types.Object]:
-        """Copy imported objects from a collection or object list into the destination."""
         objects = list(src.all_objects) if isinstance(src, bpy.types.Collection) else src
 
         object_set = set(objects)

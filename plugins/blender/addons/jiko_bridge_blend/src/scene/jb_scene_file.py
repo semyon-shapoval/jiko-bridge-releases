@@ -18,9 +18,8 @@ class JbSceneFile(JbSceneInstance):
     """File import/export layer in the scene hierarchy."""
 
     def __init__(self):
-        base = os.path.join(tempfile.gettempdir(), "jiko-bridge")
-        os.makedirs(base, exist_ok=True)
-        self.cache_path = base
+        self.cache_path = os.path.join(tempfile.gettempdir(), "jiko-bridge")
+        os.makedirs(self.cache_path, exist_ok=True)
 
     def import_file(self, file_path) -> bool:
         if not os.path.exists(file_path):

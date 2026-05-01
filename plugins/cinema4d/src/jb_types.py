@@ -11,6 +11,9 @@ import c4d
 JbContainer = c4d.BaseObject
 JbObject = c4d.BaseObject
 JbSource = c4d.documents.BaseDocument
+JbMaterial = c4d.BaseMaterial
+JbMatrix = c4d.Matrix
+JbScene = c4d.documents.BaseDocument
 
 
 class AssetInfo:

@@ -3,72 +3,114 @@ Scene tree traversal and querying.
 Code by Semyon Shapoval, 2026
 """
 
-from __future__ import annotations
-from typing import Callable, Literal
-
 import c4d
-from src.scene.jb_scene_base import JbSceneBase
+
+from src.jb_protocols import JbSceneABC
+from src.jb_types import JbMaterial, JbObject, JbSource
 
 
-class JbSceneTree(JbSceneBase):
-    """Traversal and querying of Cinema 4D object hierarchies.
+class JbSceneObjects(JbSceneABC):
+    """Traversal and querying of Cinema 4D object hierarchies."""
 
-    Implements the traversal group of JBSceneBase.
-    Responsible only for reading the object tree — no mutations,
-    no document management, no user data.
-    """
-
-    def get_selection(
-        self, selection_type: Literal["objects", "materials"] = "objects"
-    ) -> list[c4d.BaseObject | c4d.BaseMaterial]:
-        """Return the currently selected objects or materials."""
-        if selection_type == "objects":
+    def get_selection(self, select_type="objects") -> list[JbObject | JbMaterial]:
+        if select_type == "objects":
             return self.source.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
-        if selection_type == "materials":
+        if select_type == "materials":
             return self.source.GetActiveMaterials()
         return []
 
-    def walk(
-        self,
-        obj: c4d.BaseObject | list[c4d.BaseObject] | None,
-        fn: Callable[[c4d.BaseObject], None],
-    ) -> None:
-        """Call *fn* for every node in the hierarchy rooted at *obj*.
-
-        Accepts a single object, a list of root objects, or None (no-op).
-        Traversal order: pre-order (parent before children).
-        """
-        if obj is None:
+    def walk(self, root, fn) -> None:
+        if root is None:
             return
 
-        if isinstance(obj, (list, tuple)):
-            for o in obj:
+        if isinstance(root, (list, tuple)):
+            for o in root:
                 self.walk(o, fn)
             return
 
-        fn(obj)
-        child = obj.GetDown()
+        fn(root)
+        child = root.GetDown()
         while child:
             self.walk(child, fn)
             child = child.GetNext()
 
-    def get_children(self, obj: c4d.BaseObject | list[c4d.BaseObject]) -> list[c4d.BaseObject]:
-        """Return a flat list of *obj* and all its descendants."""
-        result: list[c4d.BaseObject] = []
-        self.walk(obj, result.append)
+    def get_objects(self, root, mode="all") -> list[JbObject]:
+        result: list[JbObject] = []
+
+        if isinstance(root, JbSource):
+            obj = root.GetFirstObject()
+        else:
+            obj = root
+
+        if mode in ("top", "all"):
+            while obj:
+                result.append(obj)
+                obj = obj.GetNext()
+                if mode == "all":
+                    self.walk(obj, result.append)
+        elif mode == "children":
+            self.walk(obj, result.append)
+
         return result
 
-    def get_top_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
-        """Return the direct children of the document root (no recursion)."""
-        result: list[c4d.BaseObject] = []
-        obj = doc.GetFirstObject()
-        while obj:
-            result.append(obj)
-            obj = obj.GetNext()
-        return result
+    def get_materials_from_objects(self, objects) -> list[JbMaterial]:
+        materials = []
 
-    def get_all_objects(self, doc: c4d.documents.BaseDocument) -> list[c4d.BaseObject]:
-        """Return every object in *doc* as a flat list."""
-        result: list[c4d.BaseObject] = []
-        self.walk(self.get_top_objects(doc), result.append)
-        return result
+        for obj in objects:
+            if not obj.IsInstanceOf(c4d.Opolygon):
+                continue
+
+            for tag in obj.GetTags():
+                if not tag.CheckType(c4d.Ttexture):
+                    continue
+
+                material = tag[c4d.TEXTURETAG_MATERIAL]
+                if material:
+                    materials.append(material)
+
+        return materials
+
+    def set_object_transform(self, obj, matrix) -> None:
+        obj.SetMg(matrix)
+
+    def _set_protection_tag(self, obj: c4d.BaseObject) -> None:
+        if obj is None:
+            return
+
+        if obj.GetTags() is not None:
+            for tag in obj.GetTags():
+                try:
+                    if tag.GetType() == c4d.Tprotection:
+                        return
+                except (AttributeError, TypeError):
+                    continue
+
+        try:
+            protection_tag = c4d.BaseTag(c4d.Tprotection)
+            if protection_tag is not None:
+                obj.InsertTag(protection_tag)
+        except (AttributeError, TypeError):
+            pass
+
+    def _set_user_data(
+        self,
+        obj: c4d.BaseObject,
+        name: str,
+        value: str | None,
+    ) -> None:
+        if value is None:
+            value = ""
+
+        for key, bc in obj.GetUserDataContainer() or []:
+            if bc[c4d.DESC_NAME] == name:
+                obj[key] = value
+                return
+
+        bc = c4d.GetCustomDatatypeDefault(c4d.DTYPE_STRING)
+        bc[c4d.DESC_NAME] = name
+        bc[c4d.DESC_SHORT_NAME] = name
+        bc[c4d.DESC_DEFAULT] = value
+
+        element = obj.AddUserData(bc)
+        if element is not None:
+            obj[element] = value

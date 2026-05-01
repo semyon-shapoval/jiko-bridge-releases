@@ -76,7 +76,7 @@ class JbSceneInstance(JbSceneContainer):
 
         return result
 
-    def replace_instances_with_placeholders(self, objects, scene) -> list[JbObject]:
+    def replace_instances_with_placeholders(self, objects, source) -> list[JbObject]:
         result = []
         for obj in objects:
             if obj.instance_type == "COLLECTION" and obj.instance_collection:
@@ -88,9 +88,9 @@ class JbSceneInstance(JbSceneContainer):
                             asset=info.asset_name,
                             transform=obj.matrix_world.copy(),
                         ),
-                        scene,
+                        source,
                     )
-                    col = scene.collection
+                    col = source.collection
                     if col is not None:
                         col.objects.unlink(obj)
                     bpy.data.objects.remove(obj, do_unlink=True)
@@ -99,7 +99,7 @@ class JbSceneInstance(JbSceneContainer):
             result.append(obj)
         return result
 
-    def create_placeholder(self, placeholder_info, scene) -> JbObject:
+    def create_placeholder(self, placeholder_info, source) -> JbObject:
         pack_name = placeholder_info["pack"]
         asset_name = placeholder_info["asset"]
         transform = placeholder_info["transform"]
@@ -114,7 +114,7 @@ class JbSceneInstance(JbSceneContainer):
         obj["jb_placeholder_pack"] = pack_name
         obj["jb_placeholder_asset"] = asset_name
         obj.matrix_world = transform
-        col = scene.collection
+        col = source.collection
         if col is not None:
             col.objects.link(obj)
         return obj

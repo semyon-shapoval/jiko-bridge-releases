@@ -21,7 +21,7 @@ class JbCommandsPopup:
 
     def __init__(self, source: JbSource):
         self.doc = source
-        self.asset_import = JbAssetImporter()
+        self.asset_import = JbAssetImporter(source)
         self.asset_export = JbAssetExporter(source)
 
     def export_asset(self):

@@ -6,6 +6,7 @@ Code by Semyon Shapoval, 2026
 import sys
 import logging
 
+import bpy
 import addon_utils
 
 
@@ -36,3 +37,29 @@ def reload_plugin_modules(addon_module_name: str = "jiko_bridge_blend") -> None:
     for k in to_remove:
         del sys.modules[k]
     addon_utils.enable(addon_module_name)
+
+
+addon_keymaps: list = []
+
+
+def register_keymap():
+    """Register keymap"""
+    wm = bpy.context.window_manager
+    kc = wm.keyconfigs.addon
+    if kc:
+        km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
+        kmi = km.keymap_items.new(
+            "wm.call_menu_pie",
+            type="J",
+            value="PRESS",
+            ctrl=True,
+        )
+        kmi.properties.name = "JB_MT_PIE_MAIN"
+        addon_keymaps.append((km, kmi))
+
+
+def unregister_keymap():
+    """Unregister keymap"""
+    for km, kmi in addon_keymaps:
+        km.keymap_items.remove(kmi)
+    addon_keymaps.clear()

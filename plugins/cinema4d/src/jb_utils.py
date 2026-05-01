@@ -51,14 +51,6 @@ def busy_cursor(status_text: str = ""):
         c4d.gui.SetMousePointer(c4d.MOUSE_NORMAL)
         c4d.StatusClear()
 
-
-def confirm(message: str) -> bool:
-    """Show a confirmation dialog. In headless mode, it always returns True."""
-    if is_headless():
-        return True
-    return c4d.gui.QuestionDialog(message)
-
-
 def reload_plugin_modules() -> None:
     """Reload plugin modules to ensure the latest code is used."""
     importlib.invalidate_caches()

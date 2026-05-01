@@ -4,10 +4,10 @@ Code by Semyon Shapoval, 2026
 """
 
 import bpy
-from .src.jb_commands import JB_PT_Commands
+from .src.jb_commands import JB_PT_Commands, JB_MT_PIE_AssetActions
 from .src.jb_asset_exporter import JbAssetExporter
 from .src.jb_asset_importer import JbAssetImporter
-from .src.jb_utils import reload_plugin_modules
+from .src.jb_utils import register_keymap, reload_plugin_modules, unregister_keymap
 
 
 class JB_OT_AssetImport(bpy.types.Operator):  # pylint: disable=invalid-name
@@ -19,7 +19,9 @@ class JB_OT_AssetImport(bpy.types.Operator):  # pylint: disable=invalid-name
     bl_options = {"REGISTER", "UNDO"}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
+        importer = JbAssetImporter(context)
+        msg = importer.import_message()
+        return context.window_manager.invoke_confirm(self, event, message=msg)
 
     def execute(self, context):
         importer = JbAssetImporter(context)
@@ -36,7 +38,9 @@ class JB_OT_AssetExport(bpy.types.Operator):  # pylint: disable=invalid-name
     bl_options = {"REGISTER", "UNDO"}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_confirm(self, event)
+        exporter = JbAssetExporter(context)
+        msg = exporter.export_message()
+        return context.window_manager.invoke_confirm(self, event, message=msg)
 
     def execute(self, context):
         exporter = JbAssetExporter(context)
@@ -55,7 +59,13 @@ class JB_OT_Reload(bpy.types.Operator):  # pylint: disable=invalid-name
         return {"FINISHED"}
 
 
-classes = [JB_PT_Commands, JB_OT_Reload, JB_OT_AssetExport, JB_OT_AssetImport]
+classes = [
+    JB_PT_Commands,
+    JB_OT_Reload,
+    JB_OT_AssetExport,
+    JB_OT_AssetImport,
+    JB_MT_PIE_AssetActions,
+]
 
 
 def register():
@@ -63,8 +73,12 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
+    register_keymap()
+
 
 def unregister():
     """Unregister addon classes."""
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+    unregister_keymap()

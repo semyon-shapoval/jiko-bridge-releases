@@ -6,51 +6,27 @@ Code by Semyon Shapoval, 2026
 import c4d
 
 from src.scene.jb_scene_container import JbSceneContainer
-from src.jb_types import AssetInfo, JbContainer
-from src.jb_utils import get_logger
-
-logger = get_logger(__name__)
+from src.jb_types import AssetInfo, JbObject
+from src.jb_protocols import JbPlaceholderInfo
 
 
 class JbSceneInstance(JbSceneContainer):
-    """Instance and placeholder management for Cinema 4D.
+    """Instance and placeholder management for Cinema 4D."""
 
-    Inherits selection helpers from JbSceneSelect and implements the
-    instance / placeholder group of JbSceneBase.
-    """
-
-    def has_instances(self, objects: list) -> bool:
-        """Check if any of the given objects is an instance."""
-        return any(o.CheckType(c4d.Oinstance) for o in objects)
-
-    def create_instance(self, asset_container: JbContainer, name: str):
-        """Create an instance of the given asset container."""
+    def create_instance(self, container, name):
         instance = c4d.BaseObject(c4d.Oinstance)
         instance.SetName(f"Instance_{name}")
-        instance[c4d.INSTANCEOBJECT_LINK] = asset_container
+        instance[c4d.INSTANCEOBJECT_LINK] = container
         instance[c4d.INSTANCEOBJECT_RENDERINSTANCE_MODE] = 1
-        for key, bc in asset_container.GetUserDataContainer():
-            self.set_user_data(instance, bc[c4d.DESC_NAME], asset_container[key])
+        for key, bc in container.GetUserDataContainer():
+            self._set_user_data(instance, bc[c4d.DESC_NAME], container[key])
         self.source.InsertObject(instance)
         instance.SetBit(c4d.BIT_ACTIVE)
         return instance
 
-    def set_instance_transform(self, instance, matrix) -> None:
-        """Set the instance's transform to the given matrix."""
-        instance.SetMg(matrix)
-
-    def add_instance_to_container(self, instance, container) -> None:
-        """Parent the instance under the given container."""
-        instance.InsertUnder(container)
-
-    # ------------------------------------------------------------------
-    # Placeholder extraction
-    # ------------------------------------------------------------------
-
-    def extract_placeholders(self, container) -> list:
-        """Extract placeholder info from the given container and remove them."""
+    def extract_placeholders(self, container) -> list[JbPlaceholderInfo]:
         result = []
-        for obj in self.get_children(container):
+        for obj in self.get_objects(container, "children"):
             if not obj.IsInstanceOf(c4d.Opolygon):
                 continue
             if obj.GetPointCount() != 4:
@@ -69,50 +45,55 @@ class JbSceneInstance(JbSceneContainer):
             if not info:
                 continue
             result.append(
-                {
-                    "packName": info.pack_name,
-                    "assetName": info.asset_name,
-                    "matrix": obj.GetMg(),
-                }
+                JbPlaceholderInfo(
+                    pack=info.pack_name,
+                    asset=info.asset_name,
+                    transform=obj.GetMg(),
+                )
             )
             obj.Remove()
         return result
 
-    # ------------------------------------------------------------------
-    # Internal — placeholder creation / instance replacement
-    # ------------------------------------------------------------------
-
-    def _replace_instances_with_placeholders(
-        self, doc: c4d.documents.BaseDocument, objects: list[c4d.BaseObject]
-    ) -> None:
+    def replace_instances_with_placeholders(self, objects, source) -> list[JbObject]:
         if not objects:
-            return
+            return []
+
+        new_objects = []
 
         for obj in objects:
             if not obj.CheckType(c4d.Oinstance):
                 continue
-            info = self.get_asset_from_user_data(obj)
+            info = self.get_asset_data_from_container(obj)
             if not info:
                 continue
-            placeholder = self._create_placeholder(doc, info.pack_name, info.asset_name)
-            placeholder.SetMg(obj.GetMg())
+            placeholder = self.create_placeholder(
+                JbPlaceholderInfo(
+                    asset=info.asset_name,
+                    pack=info.pack_name,
+                    transform=obj.GetMg(),
+                ),
+                source,
+            )
             placeholder.InsertBefore(obj)
             obj.Remove()
+            new_objects.append(placeholder)
 
-    def _create_placeholder(
-        self,
-        doc: c4d.documents.BaseDocument,
-        pack_name: str,
-        asset_name: str,
-    ):
-        material_type = getattr(c4d, "Mmaterial", None)
-        material = (
-            c4d.BaseMaterial(material_type) if material_type is not None else c4d.BaseMaterial()
-        )
-        material.SetName(f"{pack_name}__{asset_name}")
-        doc.InsertMaterial(material)
+        return new_objects
+
+    def create_placeholder(self, placeholder_info, source) -> JbObject:
+        pack_name = placeholder_info["pack"]
+        asset_name = placeholder_info["asset"]
+        transform = placeholder_info["transform"]
+
+        material = c4d.BaseMaterial()
+        material.SetName(f"{placeholder_info}__{placeholder_info.asset_name}")
+
+        source.InsertMaterial(material)
 
         obj = c4d.BaseObject(c4d.Oplane)
+
+        obj.SetMg(transform)
+
         obj.SetName(f"{pack_name}__{asset_name}")
         obj[c4d.PRIM_PLANE_WIDTH] = 100
         obj[c4d.PRIM_PLANE_HEIGHT] = 100

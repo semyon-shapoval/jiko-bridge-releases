@@ -15,9 +15,11 @@ VENV_ACTIVATE := $(VENV_BIN)\activate.bat
 # Системные пути
 DESKTOP      := $(USERPROFILE)\Desktop
 
-# Путь к папке с аддонами проекта
-ADDONS_PATH  := $(CURDIR)/plugins/blender
-C4D_PLUGIN_PATH := $(CURDIR)/plugins/c4d
-
 # Название аддона для Blender
 ADDON_NAME := jiko_bridge_blend
+
+# Путь к папке с аддонами проекта
+ROOT_ADDONS_PATH  := $(CURDIR)/plugins/blender
+C4D_PLUGIN_PATH := $(CURDIR)/plugins/cinema4d
+BLENDER_PLUGIN_PATH := $(ROOT_ADDONS_PATH)/addons/$(ADDON_NAME)
+
