@@ -6,7 +6,7 @@ Code by Semyon Shapoval, 2026
 from pathlib import Path
 
 from .jb_api import JbAPI
-from .jb_types import AssetFile, JbMaterial, JbObject, JbSource, JbContainer
+from .jb_types import AssetFile, AssetModel, JbMaterial, JbObject, JbSource, JbContainer
 from .scene.jb_scene import JbScene
 from .jb_utils import get_logger
 from .jb_protocols import JbAssetExporterProtocol
@@ -49,26 +49,26 @@ class JbAssetExporter(JbAssetExporterProtocol):
         return selected_objects, asset_containers
 
     def _update_asset(self, container) -> None:
-        asset_info = self.scene.get_asset_data_from_container(container)
-        if not asset_info:
+        asset_model = self.scene.get_asset_data_from_container(container)
+        if not asset_model:
             logger.error("Invalid asset information")
             return
 
         objects = self.scene.get_objects(container)
         if not objects:
-            logger.error("Container '%s' has no objects for export.", asset_info.asset_name)
+            logger.error("Container '%s' has no objects for export.", asset_model.asset_name)
             return
 
-        asset = self.api.get_asset_by_model(asset_info)
+        asset = self.api.get_asset(asset_model)
         if not asset or not asset.files:
-            logger.error("Failed to fetch asset '%s'.", asset_info.asset_name)
+            logger.error("Failed to fetch asset '%s'.", asset_model.asset_name)
             return
 
         for file in asset.files:
             if not file.filepath:
                 logger.error(
                     "Filepath missing for asset '%s'. Cannot export.",
-                    asset_info.asset_name,
+                    asset_model.asset_name,
                 )
                 continue
             ext = Path(file.filepath.lower()).suffix
@@ -76,7 +76,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
                 logger.error(
                     "Unable to determine export extension from filepath '%s' for '%s'.",
                     file.filepath,
-                    asset_info.asset_name,
+                    asset_model.asset_name,
                 )
                 continue
 
@@ -88,19 +88,14 @@ class JbAssetExporter(JbAssetExporterProtocol):
             if not asset.pack_name or not asset.asset_name:
                 logger.error(
                     "Asset information incomplete for '%s'. Cannot update asset.",
-                    asset_info.asset_name,
+                    asset_model.asset_name,
                 )
                 continue
 
-            if self.api.update_asset(
-                asset.pack_name,
-                asset.asset_name,
-                asset.database_name,
-                [AssetFile(filepath=filepath, asset_type=file.asset_type)],
-            ):
-                logger.info("Asset '%s' updated successfully.", asset_info.asset_name)
+            if self.api.update_asset(asset):
+                logger.info("Asset '%s' updated successfully.", asset_model.asset_name)
             else:
-                logger.error("Failed to update asset '%s'.", asset_info.asset_name)
+                logger.error("Failed to update asset '%s'.", asset_model.asset_name)
 
     def _create_new_asset(self, objects) -> None:
         filepath = self.scene.export_with_temp(objects, ".fbx")
@@ -108,7 +103,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
             logger.error("Export failed.")
             return
 
-        asset = self.api.create_asset([AssetFile(filepath=filepath, asset_type=None)])
+        asset = self.api.create_asset(AssetModel(files=[AssetFile(filepath=filepath)]))
 
         if not asset or not asset.files:
             logger.error("No asset found for filepath '%s'", filepath)

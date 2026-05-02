@@ -4,6 +4,7 @@ Code by Semyon Shapoval, 2026
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import bpy
 import bmesh
@@ -48,37 +49,20 @@ class JbSceneInstance(JbSceneContainer):
             col.objects.link(obj)
         return obj
 
-    def extract_placeholders(self, container) -> list[JbPlaceholderInfo]:
-        """Extracts placeholder objects from the container and returns their info."""
-        result = []
-        for obj in list(container.objects):
-            if not isinstance(obj, bpy.types.Object):
-                continue
+    def get_asset_from_placeholder(self, obj) -> Optional[AssetModel]:
+        if (
+            not isinstance(obj, bpy.types.Object)
+            or obj.data is None
+            or not isinstance(obj.data, bpy.types.Mesh)
+            or not hasattr(obj.data, "materials")
+            or len(obj.data.vertices) != 4
+        ):
+            return None
 
-            data = obj.data
-            if (
-                data is None
-                or not isinstance(data, bpy.types.Mesh)
-                or not hasattr(obj.data, "materials")
-                or len(data.vertices) != 4
-            ):
-                continue
+        mat_name = next((m.name for m in obj.data.materials if m), None)
+        asset_model = AssetModel.from_string(mat_name or obj.name)
 
-            mat_name = next((m.name for m in data.materials if m), None)
-            asset_model = AssetModel.from_string(mat_name or obj.name)
-            if not asset_model:
-                continue
-
-            result.append(
-                JbPlaceholderInfo(
-                    asset=asset_model,
-                    transform=obj.matrix_world.copy(),
-                )
-            )
-            container.objects.unlink(obj)
-            bpy.data.objects.remove(obj, do_unlink=True)
-
-        return result
+        return asset_model
 
     def replace_instances_with_placeholders(self, objects, source) -> list[JbObject]:
         result = []
@@ -93,10 +77,7 @@ class JbSceneInstance(JbSceneContainer):
                         ),
                         source,
                     )
-                    col = source.collection
-                    if col is not None:
-                        col.objects.unlink(obj)
-                    bpy.data.objects.remove(obj, do_unlink=True)
+                    self.remove_object(obj)
                     result.append(placeholder)
                     continue
             result.append(obj)

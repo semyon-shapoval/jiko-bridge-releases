@@ -59,7 +59,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
                 mat_name = mat.name
                 asset_model = AssetModel.from_string(mat_name)
                 if asset_model:
-                    asset = self.api.get_asset_by_model(asset_model)
+                    asset = self.api.get_asset(asset_model)
                     if asset:
                         assets.append(asset)
                 else:
@@ -75,7 +75,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
                 asset_model = self.scene.get_asset_data_from_container(container)
                 if not asset_model:
                     continue
-                asset = self.api.get_asset_by_model(asset_model)
+                asset = self.api.get_asset(asset_model)
                 if asset:
                     assets.append(asset)
             return list(assets)
@@ -96,8 +96,8 @@ class JbAssetImporter(JbAssetImporterProtocol):
         for file in asset.files:
             match file.bridge_type:
                 case "model":
-                    layout_container = self._create_model(asset, file)
-                    self._convert_to_instances(layout_container)
+                    container = self._create_model(asset, file)
+                    self._convert_to_instances(container)
                 case "material":
                     self.materials.import_material(asset, file)
                 case _:
@@ -111,20 +111,24 @@ class JbAssetImporter(JbAssetImporterProtocol):
             self.scene.import_with_temp(file.filepath, container)
         return container
 
-    def _convert_to_instances(self, layout_container: JbContainer) -> None:
-        for p in self.scene.extract_placeholders(layout_container):
-            child_asset = self.api.get_asset_by_model(p["asset"])
-            if not child_asset or not child_asset.files:
-                continue
+    def _convert_to_instances(self, container) -> None:
+        for obj in container.objects:
+            if asset_model := self.scene.get_asset_from_placeholder(obj):
+                asset_container = self.scene.get_container(asset_model)
 
-            asset_container, exists = self.scene.get_or_create_asset_container(child_asset)
+                if not asset_container:
+                    remote_asset = self.api.get_asset(asset_model)
+                    if not remote_asset or not remote_asset.files:
+                        continue
 
-            if not exists:
-                for file in child_asset.files:
-                    self.scene.import_with_temp(file.filepath, asset_container)
+                    asset_container, exists = self.scene.get_or_create_asset_container(remote_asset)
+                    if not exists:
+                        for file in remote_asset.files:
+                            self.scene.import_with_temp(file.filepath, asset_container)
 
-            instance = self.scene.create_instance(asset_container, child_asset.asset_name)
-            self.scene.set_object_transform(instance, p["transform"])
-            self.scene.move_objects_to_container([instance], layout_container)
+                instance = self.scene.create_instance(asset_container, asset_model.asset_name)
+                self.scene.set_object_transform(instance, obj.matrix_world.copy())
+                self.scene.move_objects_to_container([instance], container)
+                self.scene.remove_object(obj)
 
-        self.scene.cleanup_empty_objects(layout_container)
+        self.scene.cleanup_empty_objects(container)

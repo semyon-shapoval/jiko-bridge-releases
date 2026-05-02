@@ -15,6 +15,16 @@ from ..jb_types import AssetModel, JbContainer
 class JbSceneContainer(JbSceneObjects):
     """Container and asset management: collections, metadata."""
 
+    def get_container(self, asset) -> Optional[JbContainer]:
+        root = self.get_or_create_container("Assets")
+        name = f"Asset_{asset.pack_name}_{asset.asset_name}"
+
+        for col in root.children:
+            if isinstance(col, bpy.types.Collection) and col.name == name:
+                return col
+
+        return None
+
     def get_or_create_container(self, name, parent=None) -> JbContainer:
         ctx = self.source
         col = bpy.data.collections.get(name)

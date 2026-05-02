@@ -36,6 +36,7 @@ class JbScene(JBSceneTemp):
                 self.logger.warning("No objects imported for file: %s", file_path)
                 return
             root_objects = self.get_objects(temp.collection)
+            print(f"Root objects in imported scene: {[obj.name for obj in root_objects]}")
             if not root_objects:
                 self.logger.warning(
                     "No root objects found in imported scene for file: %s", file_path
@@ -44,7 +45,7 @@ class JbScene(JBSceneTemp):
             self._copy_source(root_objects, target)
 
     def export_with_temp(self, src, ext) -> Optional[str]:
-        with self.temp_source(src, debug=False) as temp:
+        with self.temp_source(src, debug=True) as temp:
             col = temp.collection
             if not col or not col.objects:
                 self.logger.warning("No objects to export.")

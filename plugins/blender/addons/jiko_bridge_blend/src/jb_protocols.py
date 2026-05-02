@@ -78,9 +78,17 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     def set_object_transform(self, obj: JbObject, matrix: JbMatrix) -> None:
         """Set the transform of the given object."""
 
+    @abstractmethod
+    def remove_object(self, obj: JbObject) -> None:
+        """Remove the given object from the scene."""
+
     # ------------------------------------------------------------------
     # Container
     # ------------------------------------------------------------------
+
+    @abstractmethod
+    def get_container(self, asset: AssetModel) -> Optional[JbContainer]:
+        """Get the container associated with the given asset, if it exists."""
 
     @abstractmethod
     def get_or_create_container(
@@ -135,7 +143,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         """Create an instance of the given object."""
 
     @abstractmethod
-    def extract_placeholders(self, container: JbContainer) -> list[JbPlaceholderInfo]:
+    def get_asset_from_placeholder(self, obj: JbObject) -> Optional[AssetModel]:
         """Extract placeholder info from objects and remove them."""
 
     @abstractmethod
@@ -217,7 +225,7 @@ class JbAssetImporterProtocol(Protocol):
     def _collect_assets(self) -> list[AssetModel]: ...
     def _import_single(self, asset: AssetModel) -> None: ...
     def _create_model(self, asset: AssetModel, file: AssetFile) -> JbContainer: ...
-    def _convert_to_instances(self, layout_container: JbContainer) -> None: ...
+    def _convert_to_instances(self, container: JbContainer) -> None: ...
 
 
 class JbAssetExporterProtocol(Protocol):
@@ -243,35 +251,14 @@ class JbAPIProtocol(Protocol):
     def get_active_asset(self) -> Optional[AssetModel]:
         """Get the currently active asset based on selection or context."""
 
-    def get_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str],
-        files: Optional[list[AssetFile]],
-    ) -> Optional[AssetModel]:
-        """Get Asset by its identifiers."""
-
-    def get_asset_by_model(self, asset_model: AssetModel) -> Optional[AssetModel]:
-        """Get Asset by an AssetModel object."""
-
     def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
         """Search for an Asset by a free-form key."""
 
-    def create_asset(
-        self,
-        files: list[AssetFile],
-        pack_name: Optional[str],
-        asset_name: Optional[str],
-        database_name: Optional[str],
-    ) -> Optional[AssetModel]:
+    def get_asset(self, asset: AssetModel) -> Optional[AssetModel]:
+        """Get Asset by an AssetModel object."""
+
+    def create_asset(self, asset: AssetModel) -> Optional[AssetModel]:
         """Create a new Asset with the given files and optional metadata."""
 
-    def update_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str],
-        files: Optional[list[AssetFile]],
-    ) -> Optional[AssetModel]:
+    def update_asset(self, asset: AssetModel) -> Optional[AssetModel]:
         """Update an existing Asset's files and metadata."""

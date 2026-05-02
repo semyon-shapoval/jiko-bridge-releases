@@ -86,12 +86,17 @@ class AssetModel:
     def to_dict(self) -> dict:
         """Convert the AssetModel instance to a dictionary."""
         result: dict[str, Any] = {}
+
+        files = list(self.files)
+        if self.active_type:
+            files.append(AssetFile(asset_type=self.active_type))
+
         if self.database_name:
             result["databaseName"] = self.database_name
         if self.pack_name:
             result["packName"] = self.pack_name
         if self.asset_name:
             result["assetName"] = self.asset_name
-        if self.files:
-            result["files"] = [f.to_dict() for f in self.files]
+        if files:
+            result["files"] = [f.to_dict() for f in files]
         return result

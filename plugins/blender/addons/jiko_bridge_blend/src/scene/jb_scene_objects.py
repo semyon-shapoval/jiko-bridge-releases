@@ -68,7 +68,9 @@ class JbSceneObjects(JbSceneABC):
             if not col:
                 return []
             top_objects = set(col.objects)
-            return [obj for obj in col.objects if obj.parent is None or obj.parent not in top_objects]
+            return [
+                obj for obj in col.objects if obj.parent is None or obj.parent not in top_objects
+            ]
         return []
 
     def get_selection(self, select_type="objects") -> list[JbContainer | JbObject | JbMaterial]:
@@ -114,3 +116,6 @@ class JbSceneObjects(JbSceneABC):
         if not isinstance(obj, bpy.types.Object):
             return
         obj.matrix_world = matrix
+
+    def remove_object(self, obj) -> None:
+        bpy.data.objects.remove(obj, do_unlink=True)

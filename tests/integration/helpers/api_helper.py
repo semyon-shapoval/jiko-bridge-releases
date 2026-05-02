@@ -1,37 +1,12 @@
+"""
+Api helper
+Code by Semyon Shapoval, 2026
+"""
+
+import importlib
 from copy import copy
 from inspect import signature
 from typing import Any, Callable
-import sys
-import urllib.request as urllib_request
-import json
-
-
-def http_request(
-    endpoint: str,
-    payload: dict[str, Any],
-    host: str = "localhost",
-    port: int = 5174,
-    timeout: int = 10,
-) -> dict[str, Any] | None:
-    url = f"http://{host}:{port}{endpoint}"
-    data = json.dumps(payload).encode()
-    req = urllib_request.Request(
-        url, data=data, headers={"Content-Type": "application/json"}, method="POST"
-    )
-    with urllib_request.urlopen(req, timeout=timeout) as resp:
-        body = resp.read().decode("utf-8")
-        return json.loads(body)
-
-
-def _positional_param_names(func: Callable) -> list[str]:
-    try:
-        return [
-            p.name
-            for p in signature(func).parameters.values()
-            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
-        ]
-    except (TypeError, ValueError):
-        return []
 
 
 def _enrich_file_list(
@@ -55,37 +30,40 @@ def make_injected_create_asset(
     payload: dict[str, Any],
     original_create_asset: Callable[..., Any],
 ) -> tuple[dict[str, Any], Callable[..., Any]]:
+    """Mock for files creation asset api"""
     payload_capture: dict[str, Any] = {}
+    original_signature = signature(original_create_asset)
 
     def injected_create_asset(*args: Any, **kwargs: Any) -> Any:
-        positional_keys = _positional_param_names(original_create_asset)[: len(args)]
-        merged = kwargs | {k: v for k, v in payload.items() if k not in positional_keys}
+        bound_args = original_signature.bind_partial(*args, **kwargs)
+        merged = dict(bound_args.arguments)
 
-        args = list(args)
-        if "files" in payload and "files" in positional_keys:
-            files_idx = positional_keys.index("files")
-            args[files_idx] = _enrich_file_list(list(args[files_idx]), payload["files"])
-        args = tuple(args)
+        for key, value in payload.items():
+            if value is None:
+                continue
+            if key == "files" and key in merged:
+                merged["files"] = _enrich_file_list(list(merged["files"]), value)
+            elif key not in merged:
+                merged[key] = value
 
         payload_capture["payload"] = merged.copy()
-        return original_create_asset(*args, **merged)
+        return original_create_asset(**merged)
 
     return payload_capture, injected_create_asset
 
 
 def make_injected_active_asset(
     payload: dict[str, Any],
-    host: str = "localhost",
-    port: int = 5174,
 ) -> Callable[..., Any]:
+    """Mock for active asset retrieval api"""
+
     def injected_active_asset(*_args, **_kwargs) -> Any:
-        body = {k: v for k, v in payload.items() if v is not None}
-        data = http_request("/api/asset", body, host=host, port=port)
-        if not data or data.get("data") is None:
-            return None
-        asset_model_module = sys.modules.get("jb_asset_model")
-        if asset_model_module and hasattr(asset_model_module, "AssetModel"):
-            return asset_model_module.AssetModel.from_dict(data["data"])
-        return data["data"]
+        data = {k: v for k, v in payload.items() if v is not None}
+        try:
+            asset_model_module = importlib.import_module("jiko_bridge_blend.src.jb_types")
+            asset = asset_model_module.AssetModel.from_dict(data)
+            return asset
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:
+            raise e
 
     return injected_active_asset

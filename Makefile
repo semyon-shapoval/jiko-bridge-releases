@@ -52,13 +52,14 @@ blend-run:
 	"$(BLENDER_PATH)" --addons $(ADDON_NAME)
 
 blend-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/$(ADDON_NAME)
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/$(ADDON_NAME) tests/integration/blender
 
 blend-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/$(ADDON_NAME)
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/$(ADDON_NAME) tests/integration/blender
 
 
 blend-test:
+	clear
 	@echo "Running Blender tests..."
 	set "BLENDER_USER_SCRIPTS=$(ROOT_ADDONS_PATH)" && \
 	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"

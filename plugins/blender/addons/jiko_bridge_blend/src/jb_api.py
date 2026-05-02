@@ -11,7 +11,7 @@ import urllib.request
 from typing import Optional
 
 
-from .jb_types import AssetModel, AssetFile
+from .jb_types import AssetModel
 from .jb_protocols import JbAPIProtocol
 from .jb_utils import get_logger
 
@@ -52,7 +52,7 @@ class JbAPI(JbAPIProtocol):
         endpoint: str,
         payload: Optional[dict] = None,
         method: str = "GET",
-        timeout: int = 5,
+        timeout: int = 15,
     ) -> Optional[dict]:
         url = f"{self.base_url}{endpoint}"
         data = json.dumps(payload).encode() if payload else None
@@ -83,50 +83,23 @@ class JbAPI(JbAPIProtocol):
         """Fetches the currently active asset."""
         return self._asset_from_response(self._request("/api/asset/active"))
 
-    def get_asset(
-        self, pack_name, asset_name, database_name=None, files=None
-    ) -> Optional[AssetModel]:
-        payload: dict = {"packName": pack_name, "assetName": asset_name}
-        if database_name:
-            payload["databaseName"] = database_name
-        if files:
-            payload["files"] = [file.to_dict() for file in files]
-        return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
-
-    def get_asset_by_model(self, asset_model) -> Optional[AssetModel]:
-        return self.get_asset(
-            asset_model.pack_name,
-            asset_model.asset_name,
-            asset_model.database_name,
-            [AssetFile(asset_type=asset_model.active_type)],
-        )
-
     def get_asset_by_search(self, search_key) -> Optional[AssetModel]:
-        payload: dict = {"searchKey": search_key}
-        return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
-
-    def create_asset(
-        self, files, pack_name=None, asset_name=None, database_name=None
-    ) -> Optional[AssetModel]:
-        """Creates a new asset with the given files and optional metadata."""
-        payload: dict = {"files": [file.to_dict() for file in files]}
-        if pack_name:
-            payload["packName"] = pack_name
-        if asset_name:
-            payload["assetName"] = asset_name
-        if database_name:
-            payload["databaseName"] = database_name
-
         return self._asset_from_response(
-            self._request("/api/asset/create", payload, method="POST", timeout=300)
+            self._request("/api/asset", {"searchKey": search_key}, method="POST")
         )
 
-    def update_asset(
-        self, pack_name, asset_name, database_name=None, files=None
-    ) -> Optional[AssetModel]:
-        payload: dict = {"packName": pack_name, "assetName": asset_name}
-        if files is not None:
-            payload["files"] = [file.to_dict() for file in files]
-        if database_name:
-            payload["databaseName"] = database_name
-        return self._asset_from_response(self._request("/api/asset/update", payload, method="POST"))
+    def get_asset(self, asset) -> Optional[AssetModel]:
+        return self._asset_from_response(
+            self._request("/api/asset", asset.to_dict(), method="POST")
+        )
+
+    def create_asset(self, asset: AssetModel) -> Optional[AssetModel]:
+        """Creates a new asset with the given files and optional metadata."""
+        return self._asset_from_response(
+            self._request("/api/asset/create", asset.to_dict(), method="POST", timeout=300)
+        )
+
+    def update_asset(self, asset: AssetModel) -> Optional[AssetModel]:
+        return self._asset_from_response(
+            self._request("/api/asset/update", asset.to_dict(), method="POST", timeout=100)
+        )
