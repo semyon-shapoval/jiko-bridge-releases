@@ -155,7 +155,8 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def create_placeholder(
         self,
-        placeholder_info: JbPlaceholderInfo,
+        asset_model: AssetModel,
+        transform: JbMatrix,
         source: JbSource,
     ) -> JbObject:
         """Create a placeholder object in the scene based on the info."""

@@ -1,3 +1,8 @@
+"""
+Helper module for integration tests.
+Code by Semyon Shapoval, 2026
+"""
+
 import logging
 
 logging.basicConfig(
@@ -5,5 +10,7 @@ logging.basicConfig(
     format='[Test Jiko] %(levelname)s: %(message)s',
 )
 
+
 def get_logger(name: str) -> logging.Logger:
-		return logging.getLogger(name)
+    """Returns a logger instance with the specified name."""
+    return logging.getLogger(name)

@@ -50,6 +50,10 @@ class JBSceneTemp(JbSceneFile):
 
         objects = self.get_objects(src)
 
+        if not objects:
+            self.logger.warning("No objects found in source")
+            return
+
         for obj in reversed(objects):
             new_obj = obj.copy()
             dst.objects.link(new_obj)

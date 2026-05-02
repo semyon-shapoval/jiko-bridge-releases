@@ -3,31 +3,16 @@ Api helper
 Code by Semyon Shapoval, 2026
 """
 
-import importlib
 from copy import copy
 from inspect import signature
 from typing import Any, Callable
 
-
-def _enrich_file_list(
-    actual_files: list[Any],
-    payload_files: list[dict[str, Any]],
-) -> list[Any]:
-    """Обогащает список объектов-файлов данными из пейлоада."""
-    enriched = []
-    for i, f in enumerate(actual_files):
-        pf = payload_files[i] if i < len(payload_files) else {}
-        if pf:
-            f = copy(f)
-            for k, v in pf.items():
-                if v is not None:
-                    setattr(f, k, v)
-        enriched.append(f)
-    return enriched
+from plugins.blender.addons.jiko_bridge_blend.src.jb_api import JbAPI
+from plugins.blender.addons.jiko_bridge_blend.src.jb_types import AssetModel
 
 
 def make_injected_create_asset(
-    payload: dict[str, Any],
+    asset_model: AssetModel,
     original_create_asset: Callable[..., Any],
 ) -> tuple[dict[str, Any], Callable[..., Any]]:
     """Mock for files creation asset api"""
@@ -38,32 +23,39 @@ def make_injected_create_asset(
         bound_args = original_signature.bind_partial(*args, **kwargs)
         merged = dict(bound_args.arguments)
 
-        for key, value in payload.items():
-            if value is None:
-                continue
-            if key == "files" and key in merged:
-                merged["files"] = _enrich_file_list(list(merged["files"]), value)
-            elif key not in merged:
-                merged[key] = value
+        asset = merged.get("asset")
+        if asset is not None:
+            for key in ("database_name", "pack_name", "asset_name"):
+                value = getattr(asset_model, key, None)
+                if value is not None and hasattr(asset, key):
+                    setattr(asset, key, value)
 
-        payload_capture["payload"] = merged.copy()
+            asset_type = asset_model.active_type or (
+                asset_model.files[0].asset_type if asset_model.files else None
+            )
+            if hasattr(asset, "files") and asset_type:
+                enriched = []
+                for f in list(asset.files):
+                    f = copy(f)
+                    f.asset_type = asset_type
+                    enriched.append(f)
+                asset.files = enriched
+
+            merged["asset"] = asset
+
+        payload_capture["asset"] = merged.get("asset")
         return original_create_asset(**merged)
 
     return payload_capture, injected_create_asset
 
 
 def make_injected_active_asset(
-    payload: dict[str, Any],
+    asset_model: AssetModel,
 ) -> Callable[..., Any]:
     """Mock for active asset retrieval api"""
 
     def injected_active_asset(*_args, **_kwargs) -> Any:
-        data = {k: v for k, v in payload.items() if v is not None}
-        try:
-            asset_model_module = importlib.import_module("jiko_bridge_blend.src.jb_types")
-            asset = asset_model_module.AssetModel.from_dict(data)
-            return asset
-        except (ImportError, ModuleNotFoundError, AttributeError) as e:
-            raise e
+        api = JbAPI()
+        return api.get_asset(asset_model)
 
     return injected_active_asset

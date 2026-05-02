@@ -3,6 +3,7 @@ Blender scene helper utilities for integration tests.
 Code by Semyon Shapoval, 2026
 """
 
+import os
 from typing import Optional
 
 import addon_utils
@@ -86,6 +87,16 @@ class BlenderSceneHelper:
         bpy.ops.wm.read_factory_settings(use_empty=True)
         self.ensure_addon_enabled(addon_name)
         self.update()
+
+    def save_document(self, filename: str) -> str:
+        """Save the current Blender file into the integration test logs directory."""
+        logs_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "logs")
+        )
+        os.makedirs(logs_dir, exist_ok=True)
+        path = os.path.join(logs_dir, f"{filename}.blend")
+        bpy.ops.wm.save_mainfile(filepath=path)
+        return path
 
     def select_objects(self, objects: list[bpy.types.Object]) -> None:
         """Select all objects in the given list."""

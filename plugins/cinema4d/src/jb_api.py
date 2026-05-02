@@ -88,7 +88,6 @@ class JbAPI:
         database_name: Optional[str] = None,
         files: Optional[List[AssetFile]] = None,
     ) -> Optional[AssetModel]:
-        """Fetches a specific asset by its identifiers."""
         payload: dict = {"packName": pack_name, "assetName": asset_name}
         if database_name:
             payload["databaseName"] = database_name
@@ -97,7 +96,6 @@ class JbAPI:
         return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
 
     def get_asset_by_info(self, asset_info: AssetInfo) -> Optional[AssetModel]:
-        """Fetches an asset using an AssetInfo object."""
         return self.get_asset(
             asset_info.pack_name,
             asset_info.asset_name,
@@ -106,7 +104,6 @@ class JbAPI:
         )
 
     def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
-        """Searches for an asset by a free-form key."""
         payload: dict = {"searchKey": search_key}
         return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
 
@@ -117,7 +114,6 @@ class JbAPI:
         asset_name: Optional[str] = None,
         database_name: Optional[str] = None,
     ) -> Optional[AssetModel]:
-        """Creates a new asset with the given files and optional metadata."""
         payload: dict = {"files": [file.to_dict() for file in files]}
         if pack_name:
             payload["packName"] = pack_name
@@ -137,7 +133,6 @@ class JbAPI:
         database_name: Optional[str] = None,
         files: Optional[List[AssetFile]] = None,
     ) -> Optional[dict]:
-        """Updates an existing asset's files and/or metadata."""
         payload: dict = {"packName": pack_name, "assetName": asset_name}
         if files is not None:
             payload["files"] = [file.to_dict() for file in files]

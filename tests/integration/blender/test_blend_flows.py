@@ -8,17 +8,20 @@ import os
 import sys
 import uuid
 import unittest
-from typing import Any, Optional
 from unittest.mock import patch
 
 import bpy
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 # pylint: disable=wrong-import-position
-from integration.helpers.api_helper import make_injected_active_asset, make_injected_create_asset
-from integration.helpers.logger import get_logger
-from integration.blender.scene_helper import BlenderSceneHelper
+from tests.integration.helpers.api_helper import (
+    make_injected_active_asset,
+    make_injected_create_asset,
+)
+from tests.integration.helpers.logger import get_logger
+from tests.integration.blender.scene_helper import BlenderSceneHelper
+from plugins.blender.addons.jiko_bridge_blend.src.jb_types import AssetModel, AssetFile
 
 log = get_logger(__name__)
 
@@ -46,37 +49,33 @@ class TestBlenderJikoBridge(unittest.TestCase):
         prefs = bpy.context.preferences
         addons = prefs.addons if prefs else []
         self.assertIn(self.scene.ADDON_NAME, addons)
-        log.info("Addon '%s' is enabled in Blender preferences.", self.scene.ADDON_NAME)
 
-        self.payload_1 = {
-            "databaseName": "test-local",
-            "packName": "test",
-            "assetName": f"test_{self.suffix}",
-            "files": [{"assetType": "model"}],
-        }
-
-        self.collection_name_1 = (
-            f"Asset_{self.payload_1['packName']}_{self.payload_1['assetName']}"
+        self.asset_1 = AssetModel(
+            database_name="test-local",
+            pack_name="test",
+            asset_name=f"test_{self.suffix}",
+            files=[AssetFile(asset_type="model", bridge_type="model")],
         )
 
-        self.payload_2 = {
-            "databaseName": "test-local",
-            "packName": "test",
-            "assetName": f"test_{self.suffix}",
-            "files": [{"assetType": "model"}],
-        }
-        self.collection_name_2 = (
-            f"Asset_{self.payload_2['packName']}_{self.payload_2['assetName']}"
+        self.collection_name_1 = f"Asset_{self.asset_1.pack_name}_{self.asset_1.asset_name}"
+
+        self.asset_2 = AssetModel(
+            database_name="test-local",
+            pack_name="test",
+            asset_name=f"test_{self.suffix}",
+            files=[AssetFile(asset_type="model", bridge_type="model")],
         )
 
-    def export_new_flow(self, payload: dict[str, Any], selected_objects=None):
-        """Exports a new asset with the given payload and optional selected objects."""
+        self.collection_name_2 = f"Asset_{self.asset_2.pack_name}_{self.asset_2.asset_name}"
+
+    def export_new_flow(self, asset_model: AssetModel, selected_objects=None):
+        """Exports a new asset with the given AssetModel and optional selected objects."""
 
         api_module = importlib.import_module("jiko_bridge_blend.src.jb_api")
 
         original_create_asset = api_module.JbAPI.create_asset
-        payload_capture, injected_create_asset = make_injected_create_asset(
-            payload, original_create_asset
+        asset_capture, injected_create_asset = make_injected_create_asset(
+            asset_model, original_create_asset
         )
 
         if selected_objects is not None:
@@ -92,7 +91,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
             result = self._call_jiko_command("asset_export")
 
         self.assertEqual(result, {"FINISHED"})
-        return payload_capture
+        return asset_capture
 
     def update_flow(self, asset_collection, parent):
         """Updates an existing asset with new geometry."""
@@ -117,13 +116,13 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
     def import_active_asset(
         self,
-        payload: Optional[dict[str, Any]] = None,
+        asset_model: AssetModel,
         count: int = 1,
     ):
-        """Import active asset from payload one or more times."""
+        """Import active asset from AssetModel one or more times."""
         self.scene.clear_selection()
-        active_payload = payload or self.payload_1
-        injected_active_asset = make_injected_active_asset(active_payload)
+        active_asset = asset_model
+        injected_active_asset = make_injected_active_asset(active_asset)
 
         api_module = importlib.import_module("jiko_bridge_blend.src.jb_api")
 
@@ -141,7 +140,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
         return result, get_active_asset_patch
 
     def reimport_flow(self, asset_collection):
-        """Reimport an asset collection or import active asset from payload."""
+        """Reimport an asset collection or import active asset from AssetModel."""
         active_layer_collection = self.scene.activate_collection(asset_collection.name)
         self.assertIsNotNone(active_layer_collection)
 
@@ -149,10 +148,10 @@ class TestBlenderJikoBridge(unittest.TestCase):
         self.assertEqual(result, {"FINISHED"})
         return result
 
-    def instancing(self, payload: dict[str, Any], count: int = 5):
+    def instancing(self, asset_model: AssetModel, count: int = 5):
         """Creates multiple instances of an asset by repeatedly importing the active asset."""
 
-        _, get_active_asset_patch = self.import_active_asset(payload=payload, count=count)
+        _, get_active_asset_patch = self.import_active_asset(asset_model=asset_model, count=count)
 
         instances = self.scene.get_collection_instances()
         self.assertEqual(
@@ -171,7 +170,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
         log.info("Starting export operator test with selected object '%s'.", parent.name)
 
-        payload_capture = self.export_new_flow(self.payload_1)
+        asset_capture = self.export_new_flow(self.asset_1)
         scene = bpy.context.scene
         scene_collection = scene.collection if scene else None
         self.assertFalse(
@@ -184,7 +183,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
         self.assertIsNotNone(asset_collection)
 
         expected_hierarchy = self.update_flow(asset_collection, parent)
-        self.assertIn("payload", payload_capture)
+        self.assertIn("asset", asset_capture)
 
         # Stage 3: Reimport the updated collection asset
         self.reimport_flow(asset_collection)
@@ -196,11 +195,11 @@ class TestBlenderJikoBridge(unittest.TestCase):
         )
 
         # Stage 4: Create instances by importing active asset repeatedly
-        instances, get_active_asset_patch = self.instancing(self.payload_1)
+        instances, get_active_asset_patch = self.instancing(self.asset_1)
         self.assertEqual(get_active_asset_patch.call_count, 5)
 
         # Stage 5: Export the selected instances as a new asset
-        self.export_new_flow(self.payload_2, selected_objects=instances)
+        self.export_new_flow(self.asset_2, selected_objects=instances)
 
         # Stage 6: Import in empty scene
         self.scene.reset_scene()
@@ -210,7 +209,12 @@ class TestBlenderJikoBridge(unittest.TestCase):
             "Payload1 asset must not exist before payload2 import",
         )
 
-        self.import_active_asset(payload=self.payload_2)
+        self.import_active_asset(asset_model=self.asset_2)
+        saved_path = self.scene.save_document("test_blend_flows_end")
+        self.assertTrue(
+            os.path.exists(saved_path),
+            f"Saved blend file should exist at {saved_path}",
+        )
 
         self.assertIsNotNone(
             bpy.data.collections.get(self.collection_name_2),

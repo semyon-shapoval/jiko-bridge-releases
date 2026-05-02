@@ -10,7 +10,6 @@ import bpy
 import bmesh
 from ..jb_types import AssetModel, JbObject
 from .jb_scene_container import JbSceneContainer
-from ..jb_protocols import JbPlaceholderInfo
 
 
 class JbSceneInstance(JbSceneContainer):
@@ -29,10 +28,9 @@ class JbSceneInstance(JbSceneContainer):
             scene.collection.objects.link(empty)
         return empty
 
-    def create_placeholder(self, placeholder_info, source) -> JbObject:
-        pack_name = placeholder_info["pack"]
-        asset_name = placeholder_info["asset"]
-        transform = placeholder_info["transform"]
+    def create_placeholder(self, asset_model, transform, source) -> JbObject:
+        pack_name = asset_model.pack_name
+        asset_name = asset_model.asset_name
 
         mesh = bpy.data.meshes.new(f"{pack_name}__{asset_name}")
         bm = bmesh.new()
@@ -68,14 +66,10 @@ class JbSceneInstance(JbSceneContainer):
         result = []
         for obj in objects:
             if obj.instance_type == "COLLECTION" and obj.instance_collection:
-                info = self.get_asset_data_from_container(obj.instance_collection)
-                if info and info.pack_name and info.asset_name:
+                asset_model = self.get_asset_data_from_container(obj.instance_collection)
+                if asset_model:
                     placeholder = self.create_placeholder(
-                        JbPlaceholderInfo(
-                            asset=info,
-                            transform=obj.matrix_world.copy(),
-                        ),
-                        source,
+                        asset_model, obj.matrix_world.copy(), source
                     )
                     self.remove_object(obj)
                     result.append(placeholder)

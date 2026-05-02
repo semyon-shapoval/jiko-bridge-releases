@@ -73,14 +73,12 @@ class JbAPI(JbAPIProtocol):
             return None
 
     def _asset_from_response(self, resp: Optional[dict]) -> Optional[AssetModel]:
-        """Helper to parse an AssetModel from an API response."""
         payload = (resp or {}).get("data")
         if not payload:
             return None
         return AssetModel.from_dict(payload)
 
     def get_active_asset(self) -> Optional[AssetModel]:
-        """Fetches the currently active asset."""
         return self._asset_from_response(self._request("/api/asset/active"))
 
     def get_asset_by_search(self, search_key) -> Optional[AssetModel]:
@@ -94,12 +92,11 @@ class JbAPI(JbAPIProtocol):
         )
 
     def create_asset(self, asset: AssetModel) -> Optional[AssetModel]:
-        """Creates a new asset with the given files and optional metadata."""
         return self._asset_from_response(
             self._request("/api/asset/create", asset.to_dict(), method="POST", timeout=300)
         )
 
     def update_asset(self, asset: AssetModel) -> Optional[AssetModel]:
         return self._asset_from_response(
-            self._request("/api/asset/update", asset.to_dict(), method="POST", timeout=100)
+            self._request("/api/asset/update", asset.to_dict(), method="POST", timeout=30)
         )
