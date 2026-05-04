@@ -24,27 +24,31 @@ class BlenderSceneHelper:
     def create_scene_object(
         self, name: str, parent: Optional[bpy.types.Object] = None
     ) -> bpy.types.Object:
-        """Create a new empty object in the scene with the given name and parent."""
+        """Create a new cube primitive in the scene with the given name and parent."""
         bpy.ops.object.select_all(action="DESELECT")
 
-        mesh = bpy.data.meshes.new(f"{name}Mesh")
-        obj = bpy.data.objects.new(name, mesh)
-        scene = bpy.context.scene
-        collection = scene.collection if scene else None
+        existing_objects = set(bpy.data.objects)
+        bpy.ops.mesh.primitive_cube_add(size=2.0, enter_editmode=False, align="WORLD")
 
-        if parent is not None and parent.users_collection:
-            for col in parent.users_collection:
-                col.objects.link(obj)
-        else:
-            if collection is not None:
-                collection.objects.link(obj)
+        obj = next((o for o in bpy.data.objects if o not in existing_objects), None)
+        if obj is None:
+            obj = bpy.context.object
+        if obj is None:
+            raise RuntimeError("Failed to create cube primitive")
+
+        obj.name = name
 
         if parent is not None:
+            if parent.users_collection:
+                for col in parent.users_collection:
+                    if obj.name not in col.objects:
+                        col.objects.link(obj)
+
             obj.parent = parent
-            obj.matrix_parent_inverse = obj.matrix_parent_inverse.copy()
+            obj.parent_type = "OBJECT"
+            obj.matrix_parent_inverse = parent.matrix_world.inverted()
 
         obj.select_set(True)
-
         self.update()
 
         return obj
@@ -59,20 +63,37 @@ class BlenderSceneHelper:
                 return found
         return None
 
-    def activate_collection(self, name):
-        """Activate the layer collection with the given name and return it."""
+    def select_collection(self, name):
+        """Find and select a collection by name."""
+        view_layer = bpy.context.view_layer
+        if view_layer is None:
+            return None
+
         layer_collection = self.find_layer_collection(
-            bpy.context.view_layer.layer_collection,
+            view_layer.layer_collection,
             name,
         )
-        if layer_collection is not None:
-            bpy.context.view_layer.active_layer_collection = layer_collection
+        if layer_collection is None:
+            return None
+
+        view_layer.active_layer_collection = layer_collection
         return layer_collection
 
     def clear_selection(self):
-        """Deselect all objects and reset the active layer collection."""
-        bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
+        """Deselect all objects, reset the active layer collection, and clear Outliner selection."""
+        view_layer = bpy.context.view_layer
+        if view_layer is None:
+            return
+
+        # Сначала сбрасываем через ops
         bpy.ops.object.select_all(action="DESELECT")
+
+        # Потом явно обнуляем активный объект
+        view_layer.objects.active = None
+
+        # Сбрасываем active_layer_collection на корневую коллекцию
+        view_layer.active_layer_collection = view_layer.layer_collection
+
         self.update()
 
     def ensure_addon_enabled(self, addon_name: str | None = None) -> None:
@@ -90,9 +111,7 @@ class BlenderSceneHelper:
 
     def save_document(self, filename: str) -> str:
         """Save the current Blender file into the integration test logs directory."""
-        logs_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "logs")
-        )
+        logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
         os.makedirs(logs_dir, exist_ok=True)
         path = os.path.join(logs_dir, f"{filename}.blend")
         bpy.ops.wm.save_mainfile(filepath=path)

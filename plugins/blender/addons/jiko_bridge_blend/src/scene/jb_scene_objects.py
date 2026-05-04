@@ -3,12 +3,12 @@ Tree scene helpers for Jiko Bridge Blender plugin
 Code by Semyon Shapoval, 2026
 """
 
-from typing import Optional
+from typing import Generator, Optional
 
 import bpy
 
 
-from ..jb_types import JbMaterial, JbObject, JbContainer
+from ..jb_types import JbMaterial, JbData
 from ..jb_protocols import JbSceneABC
 
 
@@ -27,8 +27,14 @@ class JbSceneObjects(JbSceneABC):
                         return area, region
         return None
 
-    def walk(self, root):
-        seen = set()
+    def walk(self, root) -> list[JbData]:
+        if not root:
+            return []
+
+        return list(self._walk(root))
+
+    def _walk(self, root: list[JbData]) -> Generator[JbData, None, None]:
+        seen: set[JbData] = set()
 
         def walk_object(obj: bpy.types.Object):
             if obj in seen:
@@ -38,66 +44,55 @@ class JbSceneObjects(JbSceneABC):
             for child in obj.children:
                 yield from walk_object(child)
 
-        if isinstance(root, bpy.types.Collection):
-            for obj in root.objects:
+        def walk_collection(collection: bpy.types.Collection):
+            if collection in seen:
+                return
+            seen.add(collection)
+            yield collection
+            for obj in collection.objects:
                 yield from walk_object(obj)
-            for child_col in root.children:
-                yield from self.walk(child_col)
-            return
+            for child_col in collection.children:
+                yield from walk_collection(child_col)
 
-        if isinstance(root, (list, tuple)):
-            for obj in root:
+        for obj in root:
+            if isinstance(obj, bpy.types.Object):
                 yield from walk_object(obj)
-            return
+            elif isinstance(obj, bpy.types.Collection):
+                yield from walk_collection(obj)
+            elif isinstance(obj, bpy.types.Material):
+                if obj not in seen:
+                    seen.add(obj)
+                    yield obj
 
-        yield from walk_object(root)
-
-    def get_objects(self, root=None, mode="all") -> list[JbObject]:
+    def get_selection(self) -> list[JbData]:
         ctx = self.source
-        scene = ctx.scene
-        if not scene:
-            return []
-        if mode == "all":
-            if root:
-                return list(self.walk(root))
+        data: list[JbData] = []
 
-            return list(scene.objects)
-
-        if mode == "top":
-            col = root if isinstance(root, bpy.types.Collection) else scene.collection
-            if not col:
+        outliner = self._outliner
+        if outliner:
+            area, region = outliner
+            with ctx.temp_override(area=area, region=region):
+                selected = ctx.selected_ids
+                if selected:
+                    for item in selected:
+                        if isinstance(
+                            item, (bpy.types.Object, bpy.types.Collection, bpy.types.Material)
+                        ):
+                            data.append(item)
+        else:
+            if not (view_layer := ctx.view_layer):
                 return []
-            top_objects = set(col.objects)
-            return [
-                obj for obj in col.objects if obj.parent is None or obj.parent not in top_objects
-            ]
-        return []
+            if view_layer.objects:
+                data = list(view_layer.objects.selected)
+            if (
+                not data
+                and (active_layer := view_layer.active_layer_collection)
+                and (collection := active_layer.collection)
+            ):
+                data = [collection]
 
-    def get_selection(self, select_type="objects") -> list[JbContainer | JbObject | JbMaterial]:
-        ctx = self.source
-        objects: list[JbContainer | JbObject | JbMaterial] = []
-
-        if select_type in ("objects", "recursive"):
-            outliner = self._outliner
-            if outliner:
-                area, region = outliner
-                with ctx.temp_override(area=area, region=region):
-                    selected = ctx.selected_ids
-                    if selected:
-                        for item in selected:
-                            if isinstance(
-                                item, (bpy.types.Object, bpy.types.Collection, bpy.types.Material)
-                            ):
-                                objects.append(item)
-            else:
-                if not (view_layer := ctx.view_layer):
-                    return []
-                objects = list(view_layer.objects.selected)  # type: ignore[assignment]
-
-            if objects and select_type == "recursive":
-                objects = list(self.walk(objects))
-
-        return objects
+        self.logger.debug("Selected objects: %s", data)
+        return data
 
     def get_materials_from_objects(self, objects) -> list[JbMaterial]:
         materials: set[JbMaterial] = set()
@@ -112,10 +107,8 @@ class JbSceneObjects(JbSceneABC):
             materials.update(mat for mat in getattr(data, "materials", ()) if mat is not None)
         return list(materials)
 
-    def set_object_transform(self, obj, matrix) -> None:
-        if not isinstance(obj, bpy.types.Object):
-            return
-        obj.matrix_world = matrix
+    def copy_object_transform(self, obj, target_obj) -> None:
+        obj.matrix_world = target_obj.matrix_world.copy()
 
     def remove_object(self, obj) -> None:
         bpy.data.objects.remove(obj, do_unlink=True)

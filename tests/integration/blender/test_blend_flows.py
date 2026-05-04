@@ -12,16 +12,18 @@ from unittest.mock import patch
 
 import bpy
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, root_dir)
 
-# pylint: disable=wrong-import-position
-from tests.integration.helpers.api_helper import (
+
+# pylint: disable=wrong-import-position disable=import-error
+from plugins.blender.addons.jiko_bridge_blend.src.jb_types import AssetModel, AssetFile
+from tests.integration.helpers.jb_helper import (
     make_injected_active_asset,
     make_injected_create_asset,
+    get_logger,
 )
-from tests.integration.helpers.logger import get_logger
 from tests.integration.blender.scene_helper import BlenderSceneHelper
-from plugins.blender.addons.jiko_bridge_blend.src.jb_types import AssetModel, AssetFile
 
 log = get_logger(__name__)
 
@@ -68,7 +70,19 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
         self.collection_name_2 = f"Asset_{self.asset_2.pack_name}_{self.asset_2.asset_name}"
 
-    def export_new_flow(self, asset_model: AssetModel, selected_objects=None):
+        self.asset_mat_1 = AssetModel(
+            database_name="test-local", pack_name="test", asset_name="test_mat"
+        )
+        self.material_name_1 = f"{self.asset_mat_1.pack_name}__{self.asset_mat_1.asset_name}"
+
+    def tearDown(self) -> None:
+        if hasattr(self, "scene") and self.scene is not None:
+            try:
+                self.scene.save_document("test_blend_flows_teardown")
+            except (OSError, RuntimeError) as exc:
+                log.warning("Failed to save Blender file in tearDown: %s", exc)
+
+    def export_flow(self, asset_model: AssetModel, selected_objects=None):
         """Exports a new asset with the given AssetModel and optional selected objects."""
 
         api_module = importlib.import_module("jiko_bridge_blend.src.jb_api")
@@ -93,26 +107,21 @@ class TestBlenderJikoBridge(unittest.TestCase):
         self.assertEqual(result, {"FINISHED"})
         return asset_capture
 
-    def update_flow(self, asset_collection, parent):
+    def update_flow(self, asset_collection: bpy.types.Collection):
         """Updates an existing asset with new geometry."""
 
-        self.scene.create_scene_object("UpdateChild", parent=parent)
-        expected_hierarchy = self.scene.get_hierarchy(asset_collection)
-
-        window = bpy.context.window_manager.windows[0]
-        screen = window.screen
-        area = next((a for a in screen.areas if a.type == "VIEW_3D"), screen.areas[0])
-        region = next((r for r in area.regions if r.type == "WINDOW"), area.regions[0])
-
         self.scene.clear_selection()
-        active_layer_collection = self.scene.activate_collection(asset_collection.name)
+        active_layer_collection = self.scene.select_collection(asset_collection.name)
         self.assertIsNotNone(active_layer_collection)
 
-        with bpy.context.temp_override(window=window, area=area, region=region):
-            result = self._call_jiko_command("asset_export")
+        exporter_module = importlib.import_module("jiko_bridge_blend.src.jb_asset_exporter")
+        exporter = exporter_module.JbAssetExporter(bpy.context)
+        export_message = exporter.export_message()
+        self.assertIn("update", export_message.lower(), "Export message should mention update")
+
+        result = self._call_jiko_command("asset_export")
 
         self.assertEqual(result, {"FINISHED"})
-        return expected_hierarchy
 
     def import_active_asset(
         self,
@@ -125,6 +134,15 @@ class TestBlenderJikoBridge(unittest.TestCase):
         injected_active_asset = make_injected_active_asset(active_asset)
 
         api_module = importlib.import_module("jiko_bridge_blend.src.jb_api")
+
+        importer_module = importlib.import_module("jiko_bridge_blend.src.jb_asset_importer")
+        importer = importer_module.JbAssetImporter(bpy.context)
+        import_message = importer.import_message()
+        self.assertIn(
+            "active asset",
+            import_message.lower(),
+            "Import message should mention active asset",
+        )
 
         with patch.object(
             api_module.JbAPI,
@@ -141,7 +159,8 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
     def reimport_flow(self, asset_collection):
         """Reimport an asset collection or import active asset from AssetModel."""
-        active_layer_collection = self.scene.activate_collection(asset_collection.name)
+        self.scene.clear_selection()
+        active_layer_collection = self.scene.select_collection(asset_collection.name)
         self.assertIsNotNone(active_layer_collection)
 
         result = self._call_jiko_command("asset_import")
@@ -170,7 +189,18 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
         log.info("Starting export operator test with selected object '%s'.", parent.name)
 
-        asset_capture = self.export_new_flow(self.asset_1)
+        self.import_active_asset(asset_model=self.asset_mat_1)
+        mat = bpy.data.materials.get(self.material_name_1)
+        assert mat is not None, "Material should be imported successfully"
+
+        assert isinstance(parent.data, bpy.types.Mesh)
+        parent.data.materials.append(mat)
+        assert parent.data.materials[0] == mat, "Material should be assigned to the object"
+
+        asset_capture = self.export_flow(self.asset_1, selected_objects=[parent])
+
+        # self.scene.save_document("test_blend_flows_after_export")
+
         scene = bpy.context.scene
         scene_collection = scene.collection if scene else None
         self.assertFalse(
@@ -182,7 +212,10 @@ class TestBlenderJikoBridge(unittest.TestCase):
         asset_collection = bpy.data.collections.get(self.collection_name_1)
         self.assertIsNotNone(asset_collection)
 
-        expected_hierarchy = self.update_flow(asset_collection, parent)
+        self.scene.create_scene_object("UpdateChild", parent=parent)
+        expected_hierarchy = self.scene.get_hierarchy(asset_collection)
+
+        self.update_flow(asset_collection)
         self.assertIn("asset", asset_capture)
 
         # Stage 3: Reimport the updated collection asset
@@ -199,7 +232,7 @@ class TestBlenderJikoBridge(unittest.TestCase):
         self.assertEqual(get_active_asset_patch.call_count, 5)
 
         # Stage 5: Export the selected instances as a new asset
-        self.export_new_flow(self.asset_2, selected_objects=instances)
+        self.export_flow(self.asset_2, selected_objects=instances)
 
         # Stage 6: Import in empty scene
         self.scene.reset_scene()
@@ -210,11 +243,6 @@ class TestBlenderJikoBridge(unittest.TestCase):
         )
 
         self.import_active_asset(asset_model=self.asset_2)
-        saved_path = self.scene.save_document("test_blend_flows_end")
-        self.assertTrue(
-            os.path.exists(saved_path),
-            f"Saved blend file should exist at {saved_path}",
-        )
 
         self.assertIsNotNone(
             bpy.data.collections.get(self.collection_name_2),

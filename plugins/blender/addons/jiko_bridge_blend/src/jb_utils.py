@@ -26,6 +26,7 @@ def get_logger(name: str) -> logging.Logger:
     console.setLevel(logging.DEBUG)
     console.setFormatter(formatter)
     logger.addHandler(console)
+    logger.propagate = False
 
     return logger
 

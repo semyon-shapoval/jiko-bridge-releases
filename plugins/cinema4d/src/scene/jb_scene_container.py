@@ -7,12 +7,17 @@ from typing import Optional
 
 import c4d
 
-from src.jb_types import AssetInfo, JbContainer
+from src.jb_types import AssetModel, JbContainer
 from src.scene.jb_scene_objects import JbSceneObjects
 
 
 class JbSceneContainer(JbSceneObjects):
     """Container and asset management: null objects, user data, collections."""
+
+    def get_container(self, asset):
+        doc = self.source
+        name = f"Asset_{asset.pack_name}_{asset.asset_name}"
+        return doc.SearchObject(name)
 
     def get_or_create_container(self, name, parent=None) -> tuple[JbContainer, bool]:
         doc = self.source
@@ -62,7 +67,7 @@ class JbSceneContainer(JbSceneObjects):
         if file:
             self._set_user_data(container, "assetType", file.asset_type)
 
-    def get_asset_data_from_container(self, container) -> Optional[AssetInfo]:
+    def get_asset_data_from_container(self, container) -> Optional[AssetModel]:
         pack_name = asset_name = asset_type = database_name = None
 
         for key, bc in container.GetUserDataContainer() or []:
@@ -79,13 +84,12 @@ class JbSceneContainer(JbSceneObjects):
         if not (pack_name and asset_name):
             return None
 
-        asset_info = AssetInfo(
-            pack_name,
-            asset_name,
-            asset_type,
-            database_name,
+        return AssetModel(
+            pack_name=pack_name,
+            asset_name=asset_name,
+            active_type=asset_type,
+            database_name=database_name,
         )
-        return asset_info
 
     def copy_asset_data(self, src, dst) -> None:
         for key, bc in src.GetUserDataContainer():

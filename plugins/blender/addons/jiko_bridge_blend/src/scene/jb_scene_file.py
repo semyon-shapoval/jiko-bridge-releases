@@ -5,7 +5,7 @@ Code by Semyon Shapoval, 2026
 
 import os
 import tempfile
-import time
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -23,7 +23,7 @@ class JbSceneFile(JbSceneInstance):
 
     def get_temp_path(self, ext: str) -> str:
         """Generate a unique temporary file path with the given extension."""
-        filename = f"tmp_{int(time.time())}{ext}"
+        filename = f"tmp_{uuid.uuid4().hex}{ext}"
         return os.path.join(self.cache_path, filename)
 
     def import_file(self, file_path) -> bool:

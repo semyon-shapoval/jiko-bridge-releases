@@ -53,7 +53,7 @@ class JbScene(JbSceneFile):
             unit_scale=c4d.DOCUMENT_UNIT_M,
             debug=False,
         ) as tmp_doc:
-            self.replace_instances_with_placeholders(tmp_doc, self.get_objects(tmp_doc))
+            self.replace_instances_with_placeholders(src, tmp_doc)
             tmp_doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
             self._make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
             self._project_scale(tmp_doc, 0.01)

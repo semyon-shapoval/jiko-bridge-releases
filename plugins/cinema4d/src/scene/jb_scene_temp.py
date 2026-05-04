@@ -48,7 +48,7 @@ class JbSceneTemp(JbSceneInstance):
             dst.InsertMaterial(mat)
             mat = next_mat
 
-        objects = self.get_objects(src, "top")
+        objects = self.walk(src.GetFirstObject())
         for obj in objects:
             obj.Remove()
             dst.InsertObject(obj)
@@ -60,7 +60,8 @@ class JbSceneTemp(JbSceneInstance):
     # ------------------------------------------------------------------
 
     def _project_scale(self, doc: c4d.documents.BaseDocument, factor: float = 0.01) -> None:
-        for obj in self.get_objects(doc):
+        objects = self.walk(doc.GetFirstObject())
+        for obj in objects:
             if obj.IsInstanceOf(c4d.Opolygon):
                 points = obj.GetAllPoints()
                 if points:

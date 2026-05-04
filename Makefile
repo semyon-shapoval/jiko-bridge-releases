@@ -28,8 +28,9 @@ diff:
 	code --diff "$(C4D_PLUGIN_PATH)/src/jb_protocols.py" "$(BLENDER_PLUGIN_PATH)/src/jb_protocols.py"
 
 c4d:
-	-make c4d-lint
+	make c4d-lint
 	make c4d-typecheck
+	make c4d-test
 
 c4d-lint:
 	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d
@@ -43,8 +44,9 @@ c4d-test:
 	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
 
 blend:
-	-make blend-lint
+	make blend-lint
 	make blend-typecheck
+	make blend-test
 
 blend-run:
 	@echo "Running Blender..."

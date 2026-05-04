@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from ..helpers.logger import get_logger
 from .scene_helper import C4DSceneHelper
-from ..helpers.api_helper import make_injected_active_asset, make_injected_create_asset
+from ..helpers.jb_helper import make_injected_active_asset, make_injected_create_asset
 from ..helpers.asset_helper import create_dummy_texture, create_material_direct
 
 log = get_logger(__name__)

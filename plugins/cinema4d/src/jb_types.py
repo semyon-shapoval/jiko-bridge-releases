@@ -3,69 +3,30 @@ Types Jiko Bridge
 Code by Semyon Shapoval, 2026
 """
 
+from dataclasses import dataclass, field
 import re
 from typing import Any, List, Optional
 
+
 import c4d
+
+JbSource = c4d.documents.BaseDocument
+JbMatrix = c4d.Matrix
 
 JbContainer = c4d.BaseObject
 JbObject = c4d.BaseObject
-JbSource = c4d.documents.BaseDocument
 JbMaterial = c4d.BaseMaterial
-JbMatrix = c4d.Matrix
-JbScene = c4d.documents.BaseDocument
+
+JbData = JbContainer | JbObject | JbMaterial
 
 
-class AssetInfo:
-    """Represents the basic information about an asset."""
-
-    pack_name: str
-    asset_name: str
-    asset_type: Optional[str]
-    database_name: Optional[str]
-
-    def __init__(
-        self,
-        pack_name: str,
-        asset_name: str,
-        asset_type: Optional[str] = None,
-        database_name: Optional[str] = None,
-    ):
-        self.pack_name = pack_name
-        self.asset_name = asset_name
-        self.asset_type = asset_type
-        self.database_name = database_name
-
-    @classmethod
-    def from_string(cls, value: str):
-        """Parse packName / assetName from a placeholder object/tag name."""
-        normalized = re.sub(r"\.\d+$", "", value)
-        pattern = re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$")
-        m = pattern.match(normalized)
-        if m:
-            return cls(
-                pack_name=m.group("pack"),
-                asset_name=m.group("asset"),
-            )
-        return None
-
-
+@dataclass
 class AssetFile:
     """Represents a file associated with an asset."""
 
-    filepath: Optional[str]
-    asset_type: Optional[str]
-    bridge_type: Optional[str]
-
-    def __init__(
-        self,
-        filepath: Optional[str] = None,
-        asset_type: Optional[str] = None,
-        bridge_type: Optional[str] = None,
-    ):
-        self.filepath = filepath
-        self.asset_type = asset_type
-        self.bridge_type = bridge_type
+    filepath: Optional[str] = None
+    asset_type: Optional[str] = None
+    bridge_type: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -89,25 +50,31 @@ class AssetFile:
         return result
 
 
+@dataclass
 class AssetModel:
     """Represents a complete asset with its metadata and associated files."""
 
-    database_name: Optional[str]
-    pack_name: Optional[str]
-    asset_name: Optional[str]
-    files: List[AssetFile]
+    database_name: Optional[str] = None
+    pack_name: Optional[str] = None
+    asset_name: Optional[str] = None
+    active_type: Optional[str] = None
+    files: List[AssetFile] = field(default_factory=list)
 
-    def __init__(
-        self,
-        database_name: Optional[str] = None,
-        pack_name: Optional[str] = None,
-        asset_name: Optional[str] = None,
-        files: Optional[List[AssetFile]] = None,
-    ):
-        self.database_name = database_name
-        self.pack_name = pack_name
-        self.asset_name = asset_name
-        self.files = files or []
+    def __hash__(self):
+        return hash((self.database_name, self.pack_name, self.asset_name))
+
+    @classmethod
+    def from_string(cls, value: str):
+        """Parse packName / assetName from a placeholder object/tag name."""
+        normalized = re.sub(r"\.\d+$", "", value)
+        pattern = re.compile(r"(?P<pack>.+?)__(?P<asset>.+?)$")
+        m = pattern.match(normalized)
+        if m:
+            return cls(
+                pack_name=m.group("pack"),
+                asset_name=m.group("asset"),
+            )
+        return None
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -122,12 +89,17 @@ class AssetModel:
     def to_dict(self) -> dict:
         """Convert the AssetModel instance to a dictionary."""
         result: dict[str, Any] = {}
+
+        files = list(self.files)
+        if self.active_type:
+            files.append(AssetFile(asset_type=self.active_type))
+
         if self.database_name:
             result["databaseName"] = self.database_name
         if self.pack_name:
             result["packName"] = self.pack_name
         if self.asset_name:
             result["assetName"] = self.asset_name
-        if self.files:
-            result["files"] = [f.to_dict() for f in self.files]
+        if files:
+            result["files"] = [f.to_dict() for f in files]
         return result

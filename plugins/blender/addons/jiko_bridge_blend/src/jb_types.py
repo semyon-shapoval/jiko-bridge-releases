@@ -10,11 +10,14 @@ import mathutils
 
 import bpy
 
+JbSource = bpy.types.Context
+JbMatrix = mathutils.Matrix
+
 JbContainer = bpy.types.Collection
 JbObject = bpy.types.Object
-JbSource = bpy.types.Context
 JbMaterial = bpy.types.Material
-JbMatrix = mathutils.Matrix
+
+JbData = JbContainer | JbObject | JbMaterial
 
 
 @dataclass

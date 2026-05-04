@@ -5,17 +5,16 @@ Code by Semyon Shapoval, 2026
 
 from abc import ABC, abstractmethod
 from logging import Logger
-from typing import Protocol, Generator, Literal, Optional, TypedDict
+from typing import Protocol, Generator, Optional, TypedDict
 
 from src.jb_types import (
-    AssetInfo,
     AssetFile,
     AssetModel,
+    JbData,
     JbContainer,
     JbMaterial,
     JbMatrix,
     JbObject,
-    JbScene,
     JbSource,
 )
 
@@ -23,8 +22,7 @@ from src.jb_types import (
 class JbPlaceholderInfo(TypedDict):
     """Represents information about a placeholder object."""
 
-    pack: str
-    asset: str
+    asset: AssetModel
     transform: JbMatrix
 
 
@@ -55,35 +53,33 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def walk(
         self,
-        root: JbContainer | JbObject | list[JbObject],
-    ) -> Generator[JbObject, None, None]:
+        root: list[JbData],
+    ) -> list[JbData]:
         """Call *fn* for every object in the root hierarchy (pre-order)."""
-
-    @abstractmethod
-    def get_selection(
-        self, select_type: Literal["objects", "recursive", "materials"] = "objects"
-    ) -> list[JbContainer | JbObject | JbMaterial]:
-        """Return the currently selected objects or materials."""
 
     @abstractmethod
     def get_materials_from_objects(self, objects: list[JbObject]) -> list[JbMaterial]:
         """Return materials used by the given objects."""
 
     @abstractmethod
-    def get_objects(
-        self,
-        root: Optional[JbSource | JbContainer | JbObject | list[JbObject]],
-        mode: Literal["all", "top", "children"] = "all",
-    ) -> list[JbObject]:
-        """Return objects of the active scene, either all or top-level."""
+    def get_selection(self) -> list[JbData]:
+        """Return the currently selected objects or materials."""
 
     @abstractmethod
-    def set_object_transform(self, obj: JbObject, matrix: JbMatrix) -> None:
+    def copy_object_transform(self, obj: JbObject, target_obj: JbObject) -> None:
         """Set the transform of the given object."""
+
+    @abstractmethod
+    def remove_object(self, obj: JbObject) -> None:
+        """Remove the given object from the scene."""
 
     # ------------------------------------------------------------------
     # Container
     # ------------------------------------------------------------------
+
+    @abstractmethod
+    def get_container(self, asset: AssetModel) -> Optional[JbContainer]:
+        """Get the container associated with the given asset, if it exists."""
 
     @abstractmethod
     def get_or_create_container(
@@ -106,7 +102,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         """Store asset info in the container's custom properties."""
 
     @abstractmethod
-    def get_asset_data_from_container(self, container: JbContainer) -> Optional[AssetInfo]:
+    def get_asset_data_from_container(self, container: JbContainer) -> Optional[AssetModel]:
         """Parse asset info from a container's custom properties."""
 
     @abstractmethod
@@ -138,7 +134,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         """Create an instance of the given object."""
 
     @abstractmethod
-    def extract_placeholders(self, container: JbContainer) -> list[JbPlaceholderInfo]:
+    def get_asset_from_placeholder(self, obj: JbObject) -> Optional[AssetModel]:
         """Extract placeholder info from objects and remove them."""
 
     @abstractmethod
@@ -150,7 +146,8 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def create_placeholder(
         self,
-        placeholder_info: JbPlaceholderInfo,
+        asset_model: AssetModel,
+        transform: JbMatrix,
         source: JbSource,
     ) -> JbObject:
         """Create a placeholder object in the scene based on the info."""
@@ -180,10 +177,10 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def temp_source(
         self,
-        objects: Optional[JbContainer | list[JbObject]] = None,
+        objects: Optional[list[JbObject | JbContainer]] = None,
         unit_scale: float | int = 1.0,
         debug: bool = False,
-    ) -> Generator[JbScene, None, None]:
+    ) -> Generator[JbSource, None, None]:
         """Context manager for temporary scenes."""
 
     # ------------------------------------------------------------------
@@ -197,7 +194,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def export_with_temp(
         self,
-        src: JbContainer | list[JbObject],
+        src: list[JbObject | JbContainer],
         ext: str,
     ) -> Optional[str]:
         """Copy objects to isolated scene, replace instances, export."""
@@ -220,7 +217,7 @@ class JbAssetImporterProtocol(Protocol):
     def _collect_assets(self) -> list[AssetModel]: ...
     def _import_single(self, asset: AssetModel) -> None: ...
     def _create_model(self, asset: AssetModel, file: AssetFile) -> JbContainer: ...
-    def _convert_to_instances(self, layout_container: JbContainer) -> None: ...
+    def _convert_to_instances(self, container: JbContainer) -> None: ...
 
 
 class JbAssetExporterProtocol(Protocol):
@@ -246,35 +243,14 @@ class JbAPIProtocol(Protocol):
     def get_active_asset(self) -> Optional[AssetModel]:
         """Get the currently active asset based on selection or context."""
 
-    def get_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str],
-        files: Optional[list[AssetFile]],
-    ) -> Optional[AssetModel]:
-        """Get Asset by its identifiers."""
-
-    def get_asset_by_info(self, asset_info: AssetInfo) -> Optional[AssetModel]:
-        """Get Asset by an AssetInfo object."""
-
     def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
         """Search for an Asset by a free-form key."""
 
-    def create_asset(
-        self,
-        files: list[AssetFile],
-        pack_name: Optional[str],
-        asset_name: Optional[str],
-        database_name: Optional[str],
-    ) -> Optional[AssetModel]:
+    def get_asset(self, asset: AssetModel) -> Optional[AssetModel]:
+        """Get Asset by an AssetModel object."""
+
+    def create_asset(self, asset: AssetModel) -> Optional[AssetModel]:
         """Create a new Asset with the given files and optional metadata."""
 
-    def update_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str],
-        files: Optional[list[AssetFile]],
-    ) -> Optional[AssetModel]:
+    def update_asset(self, asset: AssetModel) -> Optional[AssetModel]:
         """Update an existing Asset's files and metadata."""

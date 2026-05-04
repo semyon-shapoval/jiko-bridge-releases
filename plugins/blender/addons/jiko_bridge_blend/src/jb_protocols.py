@@ -5,11 +5,12 @@ Code by Semyon Shapoval, 2026
 
 from abc import ABC, abstractmethod
 from logging import Logger
-from typing import Protocol, Generator, Literal, Optional, TypedDict
+from typing import Protocol, Generator, Optional, TypedDict
 
 from .jb_types import (
     AssetFile,
     AssetModel,
+    JbData,
     JbContainer,
     JbMaterial,
     JbMatrix,
@@ -52,30 +53,20 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def walk(
         self,
-        root: JbContainer | JbObject | list[JbObject],
-    ) -> Generator[JbObject, None, None]:
+        root: list[JbData],
+    ) -> list[JbData]:
         """Call *fn* for every object in the root hierarchy (pre-order)."""
-
-    @abstractmethod
-    def get_selection(
-        self, select_type: Literal["objects", "recursive", "materials"] = "objects"
-    ) -> list[JbContainer | JbObject | JbMaterial]:
-        """Return the currently selected objects or materials."""
 
     @abstractmethod
     def get_materials_from_objects(self, objects: list[JbObject]) -> list[JbMaterial]:
         """Return materials used by the given objects."""
 
     @abstractmethod
-    def get_objects(
-        self,
-        root: Optional[JbSource | JbContainer | JbObject | list[JbObject]],
-        mode: Literal["all", "top", "children"] = "all",
-    ) -> list[JbObject]:
-        """Return objects of the active scene, either all or top-level."""
+    def get_selection(self) -> list[JbData]:
+        """Return the currently selected objects or materials."""
 
     @abstractmethod
-    def set_object_transform(self, obj: JbObject, matrix: JbMatrix) -> None:
+    def copy_object_transform(self, obj: JbObject, target_obj: JbObject) -> None:
         """Set the transform of the given object."""
 
     @abstractmethod
@@ -186,7 +177,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def temp_source(
         self,
-        objects: Optional[JbContainer | list[JbObject]] = None,
+        objects: Optional[list[JbObject | JbContainer]] = None,
         unit_scale: float | int = 1.0,
         debug: bool = False,
     ) -> Generator[JbSource, None, None]:
@@ -203,7 +194,7 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     @abstractmethod
     def export_with_temp(
         self,
-        src: JbContainer | list[JbObject],
+        src: list[JbObject | JbContainer],
         ext: str,
     ) -> Optional[str]:
         """Copy objects to isolated scene, replace instances, export."""

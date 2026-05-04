@@ -6,7 +6,7 @@ Code by Semyon Shapoval, 2026
 from pathlib import Path
 
 from .jb_api import JbAPI
-from .jb_types import AssetFile, AssetModel, JbMaterial, JbObject, JbSource, JbContainer
+from .jb_types import JbSource, AssetModel, AssetFile
 from .scene.jb_scene import JbScene
 from .jb_utils import get_logger
 from .jb_protocols import JbAssetExporterProtocol
@@ -43,8 +43,8 @@ class JbAssetExporter(JbAssetExporterProtocol):
 
         return "Export Blender project."
 
-    def _collect_data(self) -> tuple[list[JbContainer | JbObject | JbMaterial], list[JbContainer]]:
-        selected_objects = self.scene.get_selection()
+    def _collect_data(self):
+        selected_objects = self.scene.walk(self.scene.get_selection())
         asset_containers = self.scene.get_containers_from_objects(selected_objects)
         return selected_objects, asset_containers
 
@@ -84,7 +84,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
             )
             return
 
-        filepath = self.scene.export_with_temp(container, ext)
+        filepath = self.scene.export_with_temp([container], ext)
 
         if not filepath:
             return

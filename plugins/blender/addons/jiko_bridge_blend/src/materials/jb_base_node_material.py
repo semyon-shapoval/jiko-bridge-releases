@@ -17,7 +17,6 @@ class JBBaseNodeMaterial:
 
     def __init__(self, material: bpy.types.Material):
         self._mat = material
-        self._mat.use_nodes = True
 
     @property
     def _nodes(self):

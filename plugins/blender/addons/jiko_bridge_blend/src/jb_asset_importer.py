@@ -5,10 +5,10 @@ Code by Semyon Shapoval, 2026
 
 from .jb_api import JbAPI
 from .scene.jb_scene import JbScene
-from .jb_protocols import JbAssetImporterProtocol
 from .materials.jb_material_importer import JbMaterialImporter
-from .jb_types import AssetModel, JbContainer, JbSource, JbMaterial
+from .jb_types import AssetModel, JbSource, JbContainer, JbMaterial
 from .jb_utils import get_logger
+from .jb_protocols import JbAssetImporterProtocol
 
 logger = get_logger(__name__)
 
@@ -89,10 +89,6 @@ class JbAssetImporter(JbAssetImporterProtocol):
         return []
 
     def _import_single(self, asset: AssetModel) -> None:
-        if not asset.files:
-            logger.warning("Asset '%s' has no files to import.", asset.asset_name)
-            return
-
         for file in asset.files:
             match file.bridge_type:
                 case "model":
@@ -112,7 +108,8 @@ class JbAssetImporter(JbAssetImporterProtocol):
         return container
 
     def _convert_to_instances(self, container) -> None:
-        for obj in container.objects:
+        objects = self.scene.walk([container])
+        for obj in objects:
             if asset_model := self.scene.get_asset_from_placeholder(obj):
                 asset_container = self.scene.get_container(asset_model)
 
@@ -127,7 +124,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
                             self.scene.import_with_temp(file.filepath, asset_container)
 
                 instance = self.scene.create_instance(asset_container, asset_model.asset_name)
-                self.scene.set_object_transform(instance, obj.matrix_world.copy())
+                self.scene.copy_object_transform(instance, obj)
                 self.scene.move_objects_to_container([instance], container)
                 self.scene.remove_object(obj)
 

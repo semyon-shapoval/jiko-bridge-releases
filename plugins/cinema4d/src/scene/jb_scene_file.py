@@ -131,7 +131,8 @@ class JbSceneFile(JbSceneTemp):
         return os.path.join(self.cache_path, filename)
 
     def _select_all(self, doc: c4d.documents.BaseDocument) -> None:
-        for obj in self.get_objects(doc):
+        objects = self.walk(doc.GetFirstObject())
+        for obj in objects:
             obj.SetBit(c4d.BIT_ACTIVE)
 
     def export_file(self, ext) -> Optional[str]:

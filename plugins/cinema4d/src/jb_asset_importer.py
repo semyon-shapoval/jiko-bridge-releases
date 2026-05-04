@@ -4,11 +4,11 @@ Code by Semyon Shapoval, 2026
 """
 
 from src.jb_api import JbAPI
-from src.jb_types import JbMaterial, AssetInfo, AssetModel, JbContainer, JbSource
 from src.scene.jb_scene import JbScene
+from src.materials.jb_material_importer import JbMaterialImporter
+from src.jb_types import AssetModel, JbSource, JbContainer, JbMaterial
 from src.jb_utils import get_logger
-from .materials.jb_material_importer import JbMaterialImporter
-from .jb_protocols import JbAssetImporterProtocol
+from src.jb_protocols import JbAssetImporterProtocol
 
 logger = get_logger(__name__)
 
@@ -51,39 +51,39 @@ class JbAssetImporter(JbAssetImporterProtocol):
         return materials, containers
 
     def _collect_assets(self) -> list[AssetModel]:
-        assets: set[AssetModel] = set()
+        assets: list[AssetModel] = []
         materials, containers = self._collect_data()
 
         if materials:
             for mat in materials:
                 mat_name = mat.name
-                asset_info = AssetInfo.from_string(mat_name)
-                if asset_info:
-                    asset = self.api.get_asset_by_info(asset_info)
+                asset_model = AssetModel.from_string(mat_name)
+                if asset_model:
+                    asset = self.api.get_asset(asset_model)
                     if asset:
-                        assets.add(asset)
+                        assets.append(asset)
                 else:
                     asset = self.api.get_asset_by_search(mat_name)
                     if asset:
-                        assets.add(asset)
+                        assets.append(asset)
                         mat.name = f"{asset.pack_name}__{asset.asset_name}"
             return list(assets)
 
         if containers:
             for container in containers:
                 self.scene.clear_container(container)
-                asset_info = self.scene.get_asset_data_from_container(container)
-                if not asset_info:
+                asset_model = self.scene.get_asset_data_from_container(container)
+                if not asset_model:
                     continue
-                asset = self.api.get_asset_by_info(asset_info)
+                asset = self.api.get_asset(asset_model)
                 if asset:
-                    assets.add(asset)
+                    assets.append(asset)
             return list(assets)
 
         if not materials and not containers:
             asset = self.api.get_active_asset()
             if asset:
-                assets.add(asset)
+                assets.append(asset)
             return list(assets)
 
         return []
@@ -92,8 +92,8 @@ class JbAssetImporter(JbAssetImporterProtocol):
         for file in asset.files:
             match file.bridge_type:
                 case "model":
-                    layout_container = self._create_model(asset, file)
-                    self._convert_to_instances(layout_container)
+                    container = self._create_model(asset, file)
+                    self._convert_to_instances(container)
                 case "material":
                     self.materials.import_material(asset, file)
                 case _:
@@ -107,19 +107,25 @@ class JbAssetImporter(JbAssetImporterProtocol):
             self.scene.import_with_temp(file.filepath, container)
         return container
 
-    def _convert_to_instances(self, layout_container: JbContainer) -> None:
-        for p in self.scene.extract_placeholders(layout_container):
-            child_asset = self.api.get_asset(p["pack"], p["asset"])
-            if not child_asset:
-                continue
+    def _convert_to_instances(self, container) -> None:
+        objects = self.scene.walk(container)
+        for obj in objects:
+            if asset_model := self.scene.get_asset_from_placeholder(obj):
+                asset_container = self.scene.get_container(asset_model)
 
-            asset_container, exists = self.scene.get_or_create_asset_container(child_asset)
-            if not exists:
-                for file in child_asset.files:
-                    self.scene.import_with_temp(file.filepath, asset_container)
+                if not asset_container:
+                    remote_asset = self.api.get_asset(asset_model)
+                    if not remote_asset or not remote_asset.files:
+                        continue
 
-            instance = self.scene.create_instance(asset_container, child_asset.asset_name)
-            self.scene.set_object_transform(instance, p["transform"])
-            self.scene.move_objects_to_container(instance, layout_container)
+                    asset_container, exists = self.scene.get_or_create_asset_container(remote_asset)
+                    if not exists:
+                        for file in remote_asset.files:
+                            self.scene.import_with_temp(file.filepath, asset_container)
 
-        self.scene.cleanup_empty_objects(layout_container)
+                instance = self.scene.create_instance(asset_container, asset_model.asset_name)
+                self.scene.copy_object_transform(instance, obj)
+                self.scene.move_objects_to_container([instance], container)
+                self.scene.remove_object(obj)
+
+        self.scene.cleanup_empty_objects(container)

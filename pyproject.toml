@@ -4,21 +4,7 @@ show_error_codes = true
 pretty = true
 follow_imports = "normal"
 namespace_packages = true
-mypy_path = [
-    "plugins/cinema4d",
-    "plugins/blender/addons",
-    "plugins/3dsmax",
-    "plugins/houdini",
-    "plugins/maya",
-]
-files = [
-    "plugins/cinema4d/src",
-    "plugins/blender/addons/JikoBridgeBlend",
-    "plugins/3dsmax",
-    "plugins/houdini",
-    "plugins/maya",
-    "tests",
-]
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = ["c4d", "c4d.*", "maxon", "maxon.*"]

@@ -8,10 +8,12 @@ import os
 import platform
 import urllib.error
 import urllib.request
-from typing import List, Optional
+from typing import Optional
 
+
+from src.jb_types import AssetModel
+from src.jb_protocols import JbAPIProtocol
 from src.jb_utils import get_logger
-from src.jb_types import AssetFile, AssetModel, AssetInfo
 
 DEFAULT_PORT = 5174
 
@@ -39,7 +41,7 @@ def _get_port() -> int:
     return DEFAULT_PORT
 
 
-class JbAPI:
+class JbAPI(JbAPIProtocol):
     """Client for communicating with the Jiko Bridge API server."""
 
     def __init__(self, host: str = "localhost", port: Optional[int] = None):
@@ -50,7 +52,7 @@ class JbAPI:
         endpoint: str,
         payload: Optional[dict] = None,
         method: str = "GET",
-        timeout: int = 5,
+        timeout: int = 15,
     ) -> Optional[dict]:
         url = f"{self.base_url}{endpoint}"
         data = json.dumps(payload).encode() if payload else None
@@ -71,71 +73,30 @@ class JbAPI:
             return None
 
     def _asset_from_response(self, resp: Optional[dict]) -> Optional[AssetModel]:
-        """Helper to parse an AssetModel from an API response."""
         payload = (resp or {}).get("data")
         if not payload:
             return None
         return AssetModel.from_dict(payload)
 
     def get_active_asset(self) -> Optional[AssetModel]:
-        """Fetches the currently active asset."""
         return self._asset_from_response(self._request("/api/asset/active"))
 
-    def get_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str] = None,
-        files: Optional[List[AssetFile]] = None,
-    ) -> Optional[AssetModel]:
-        payload: dict = {"packName": pack_name, "assetName": asset_name}
-        if database_name:
-            payload["databaseName"] = database_name
-        if files:
-            payload["files"] = [file.to_dict() for file in files]
-        return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
-
-    def get_asset_by_info(self, asset_info: AssetInfo) -> Optional[AssetModel]:
-        return self.get_asset(
-            asset_info.pack_name,
-            asset_info.asset_name,
-            asset_info.database_name,
-            [AssetFile(asset_type=asset_info.asset_type)],
-        )
-
-    def get_asset_by_search(self, search_key: str) -> Optional[AssetModel]:
-        payload: dict = {"searchKey": search_key}
-        return self._asset_from_response(self._request("/api/asset", payload, method="POST"))
-
-    def create_asset(
-        self,
-        files: List[AssetFile],
-        pack_name: Optional[str] = None,
-        asset_name: Optional[str] = None,
-        database_name: Optional[str] = None,
-    ) -> Optional[AssetModel]:
-        payload: dict = {"files": [file.to_dict() for file in files]}
-        if pack_name:
-            payload["packName"] = pack_name
-        if asset_name:
-            payload["assetName"] = asset_name
-        if database_name:
-            payload["databaseName"] = database_name
-
+    def get_asset_by_search(self, search_key) -> Optional[AssetModel]:
         return self._asset_from_response(
-            self._request("/api/asset/create", payload, method="POST", timeout=300)
+            self._request("/api/asset", {"searchKey": search_key}, method="POST")
         )
 
-    def update_asset(
-        self,
-        pack_name: str,
-        asset_name: str,
-        database_name: Optional[str] = None,
-        files: Optional[List[AssetFile]] = None,
-    ) -> Optional[dict]:
-        payload: dict = {"packName": pack_name, "assetName": asset_name}
-        if files is not None:
-            payload["files"] = [file.to_dict() for file in files]
-        if database_name:
-            payload["databaseName"] = database_name
-        return self._request("/api/asset/update", payload, method="POST")
+    def get_asset(self, asset) -> Optional[AssetModel]:
+        return self._asset_from_response(
+            self._request("/api/asset", asset.to_dict(), method="POST")
+        )
+
+    def create_asset(self, asset: AssetModel) -> Optional[AssetModel]:
+        return self._asset_from_response(
+            self._request("/api/asset/create", asset.to_dict(), method="POST", timeout=300)
+        )
+
+    def update_asset(self, asset: AssetModel) -> Optional[AssetModel]:
+        return self._asset_from_response(
+            self._request("/api/asset/update", asset.to_dict(), method="POST", timeout=30)
+        )

@@ -7,6 +7,7 @@ from contextlib import contextmanager
 
 import bpy
 
+from ..jb_types import JbContainer, JbData
 from .jb_scene_file import JbSceneFile
 
 
@@ -41,25 +42,41 @@ class JBSceneTemp(JbSceneFile):
                 except RuntimeError:
                     pass
 
+    def _get_depth(self, src: JbData) -> int:
+        depth = 0
+        if isinstance(src, (bpy.types.Object)):
+            current = src.parent
+        else:
+            return depth
+
+        while current:
+            depth += 1
+            current = current.parent
+        return depth
+
     def _copy_source(
         self,
-        src: bpy.types.Collection | list[bpy.types.Object],
-        dst: bpy.types.Collection,
+        src: list[JbData],
+        dst: JbContainer,
     ) -> None:
         orig_to_new: dict[bpy.types.Object, bpy.types.Object] = {}
 
-        objects = self.get_objects(src)
+        objects = self.walk(src)
 
         if not objects:
             self.logger.warning("No objects found in source")
             return
 
-        for obj in reversed(objects):
-            new_obj = obj.copy()
-            dst.objects.link(new_obj)
-            if obj.parent and obj.parent in orig_to_new:
-                new_obj.parent = orig_to_new[obj.parent]
-                new_obj.parent_type = obj.parent_type
-                new_obj.parent_bone = obj.parent_bone
-                new_obj.matrix_parent_inverse = obj.matrix_parent_inverse.copy()
-            orig_to_new[obj] = new_obj
+        for obj in sorted(objects, key=self._get_depth):
+            if isinstance(obj, bpy.types.Collection):
+                continue
+
+            if isinstance(obj, bpy.types.Object):
+                new_obj = obj.copy()
+                dst.objects.link(new_obj)
+                if obj.parent and obj.parent in orig_to_new:
+                    new_obj.parent = orig_to_new[obj.parent]
+                    new_obj.parent_type = obj.parent_type
+                    new_obj.parent_bone = obj.parent_bone
+                    new_obj.matrix_parent_inverse = obj.matrix_parent_inverse.copy()
+                orig_to_new[obj] = new_obj

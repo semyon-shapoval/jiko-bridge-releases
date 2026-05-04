@@ -6,7 +6,7 @@ Code by Semyon Shapoval, 2026
 import c4d
 
 from src.jb_protocols import JbSceneABC
-from src.jb_types import JbMaterial, JbObject, JbSource
+from src.jb_types import JbData, JbObject, JbMaterial
 
 
 class JbSceneObjects(JbSceneABC):
@@ -19,39 +19,25 @@ class JbSceneObjects(JbSceneABC):
             return self.source.GetActiveMaterials()
         return []
 
-    def walk(self, root):
+    def walk(self, root) -> list[JbData]:
+        if not root:
+            return []
+        return list(self._walk(root))
+
+    def _walk(self, root):
         if root is None:
             return
 
         if isinstance(root, (list, tuple)):
             for o in root:
-                yield from self.walk(o)
+                yield from self._walk(o)
             return
 
         yield root
         child = root.GetDown()
         while child:
-            yield from self.walk(child)
+            yield from self._walk(child)
             child = child.GetNext()
-
-    def get_objects(self, root, mode="all") -> list[JbObject]:
-        result: list[JbObject] = []
-
-        if isinstance(root, JbSource):
-            obj = root.GetFirstObject()
-        else:
-            obj = root
-
-        if mode in ("top", "all"):
-            while obj:
-                result.append(obj)
-                if mode == "all":
-                    result.extend(self.walk(obj.GetDown()))
-                obj = obj.GetNext()
-        elif mode == "children":
-            result.extend(self.walk(obj))
-
-        return result
 
     def get_materials_from_objects(self, objects) -> list[JbMaterial]:
         materials = []
@@ -70,8 +56,11 @@ class JbSceneObjects(JbSceneABC):
 
         return materials
 
-    def set_object_transform(self, obj, matrix) -> None:
-        obj.SetMg(matrix)
+    def copy_object_transform(self, obj, target_obj) -> None:
+        obj.SetMg(target_obj.GetMg())
+
+    def remove_object(self, obj) -> None:
+        obj.Remove()
 
     def _set_protection_tag(self, obj: c4d.BaseObject) -> None:
         if obj is None:

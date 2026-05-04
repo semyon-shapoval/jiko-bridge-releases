@@ -3,11 +3,12 @@ Instance and placeholder management for Cinema 4D.
 Code by Semyon Shapoval, 2026
 """
 
+from typing import Optional
+
 import c4d
 
 from src.scene.jb_scene_container import JbSceneContainer
-from src.jb_types import AssetInfo, JbObject
-from src.jb_protocols import JbPlaceholderInfo
+from src.jb_types import AssetModel, JbObject
 
 
 class JbSceneInstance(JbSceneContainer):
@@ -24,35 +25,25 @@ class JbSceneInstance(JbSceneContainer):
         instance.SetBit(c4d.BIT_ACTIVE)
         return instance
 
-    def extract_placeholders(self, container) -> list[JbPlaceholderInfo]:
-        result = []
-        for obj in self.get_objects(container, "children"):
-            if not obj.IsInstanceOf(c4d.Opolygon):
-                continue
-            if obj.GetPointCount() != 4:
-                continue
+    def get_asset_from_placeholder(self, obj) -> Optional[AssetModel]:
+        if not obj.IsInstanceOf(c4d.Opolygon):
+            return None
+        if obj.GetPointCount() != 4:
+            return None
 
-            info = None
-            for tag in obj.GetTags():
-                if tag.CheckType(c4d.Ttexture):
-                    material = (
-                        tag[c4d.TEXTURETAG_MATERIAL] if tag.GetType() == c4d.Ttexture else None
-                    )
-                    if material:
-                        info = AssetInfo.from_string(material.GetName())
-                        if info:
-                            break
-            if not info:
-                continue
-            result.append(
-                JbPlaceholderInfo(
-                    pack=info.pack_name,
-                    asset=info.asset_name,
-                    transform=obj.GetMg(),
-                )
-            )
-            obj.Remove()
-        return result
+        asset_model = None
+        for tag in obj.GetTags():
+            if tag.CheckType(c4d.Ttexture):
+                material = tag[c4d.TEXTURETAG_MATERIAL] if tag.GetType() == c4d.Ttexture else None
+                if material:
+                    asset_model = AssetModel.from_string(material.GetName())
+                    if asset_model:
+                        break
+
+        if not asset_model:
+            return None
+
+        return asset_model
 
     def replace_instances_with_placeholders(self, objects, source) -> list[JbObject]:
         if not objects:
@@ -67,11 +58,8 @@ class JbSceneInstance(JbSceneContainer):
             if not info:
                 continue
             placeholder = self.create_placeholder(
-                JbPlaceholderInfo(
-                    asset=info.asset_name,
-                    pack=info.pack_name,
-                    transform=obj.GetMg(),
-                ),
+                info,
+                obj.GetMg(),
                 source,
             )
             placeholder.InsertBefore(obj)
@@ -80,13 +68,12 @@ class JbSceneInstance(JbSceneContainer):
 
         return new_objects
 
-    def create_placeholder(self, placeholder_info, source) -> JbObject:
-        pack_name = placeholder_info["pack"]
-        asset_name = placeholder_info["asset"]
-        transform = placeholder_info["transform"]
+    def create_placeholder(self, asset_model, transform, source) -> JbObject:
+        pack_name = asset_model.pack_name
+        asset_name = asset_model.asset_name
 
         material = c4d.BaseMaterial()
-        material.SetName(f"{placeholder_info}__{placeholder_info.asset_name}")
+        material.SetName(f"{pack_name}__{asset_name}")
 
         source.InsertMaterial(material)
 

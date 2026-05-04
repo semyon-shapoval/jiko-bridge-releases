@@ -35,10 +35,10 @@ class JbScene(JBSceneTemp):
             if not self.import_file(file_path):
                 self.logger.warning("No objects imported for file: %s", file_path)
                 return
-            self._copy_source(temp.collection, target)
+            self._copy_source([temp.collection], target)
 
     def export_with_temp(self, src, ext) -> Optional[str]:
-        with self.temp_source(src, debug=True) as temp:
+        with self.temp_source(src, debug=False) as temp:
             col = temp.collection
             if not col or not col.objects:
                 self.logger.warning("No objects to export.")
