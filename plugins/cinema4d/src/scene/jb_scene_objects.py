@@ -3,6 +3,8 @@ Scene tree traversal and querying.
 Code by Semyon Shapoval, 2026
 """
 
+import re
+
 import c4d
 
 from src.jb_protocols import JbSceneABC
@@ -119,3 +121,28 @@ class JbSceneObjects(JbSceneABC):
         element = obj.AddUserData(bc)
         if element is not None:
             obj[element] = value
+
+    def merge_duplicates_materials(self, material: c4d.BaseMaterial) -> None:
+        pattern = re.compile(r"^" + re.escape(material.GetName()) + r"\.\d+$")
+
+        duplicates = set()
+        mat = self.source.GetFirstMaterial()
+        while mat:
+            if pattern.match(mat.GetName()):
+                duplicates.add(mat)
+            mat = mat.GetNext()
+
+        if not duplicates:
+            return
+
+        for obj in self.walk(self.source.GetObjects()):
+            while obj:
+                tag = obj.GetFirstTag()
+                while tag:
+                    if tag.GetType() == c4d.Ttexture:
+                        if tag[c4d.TEXTURETAG_MATERIAL] in duplicates:
+                            tag[c4d.TEXTURETAG_MATERIAL] = material
+                    tag = tag.GetNext()
+
+        for dup in duplicates:
+            dup.Remove()

@@ -89,6 +89,13 @@ class Scene(BaseScene):
 
         return obj
 
+    def create_scene_material(self, name: str) -> bpy.types.Material:
+        material = bpy.data.materials.new(name=name)
+        return material
+
+    def get_all_materials(self) -> list[bpy.types.Material]:
+        return list(bpy.data.materials)
+
     def find_material_by_name(self, name) -> Optional[bpy.types.Material]:
         return bpy.data.materials.get(name)
 

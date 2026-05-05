@@ -165,9 +165,17 @@ class BaseJikoBridgeTests(unittest.TestCase):
         parent = self.scene.create_scene_object("ExportParent")
         self.scene.create_scene_object("ExportChild", parent=parent)
 
+        self.scene.create_scene_material(self.material_name_1)
+
         self.import_active_asset(asset_model=self.asset_mat_1)
         mat = self.scene.find_material_by_name(self.material_name_1)
         assert mat is not None, "Material should be imported successfully"
+
+
+        materials = self.scene.get_all_materials()
+        assert (
+            len(materials) == 1
+        ), f"Active import should remove duplicates material ({len(materials)} found)"
 
         self.scene.apply_material_to_object(parent, mat)
         self.scene.select_objects([parent])
@@ -198,4 +206,4 @@ class BaseJikoBridgeTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(argv=["test_importer"], exit=True)
+    unittest.main(argv=["tests_flows"], exit=True)

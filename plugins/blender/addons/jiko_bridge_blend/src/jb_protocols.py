@@ -77,6 +77,10 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     def get_depth(self, obj: JbData) -> int:
         """Return the depth of the given object in the hierarchy."""
 
+    @abstractmethod
+    def merge_duplicates_materials(self, material: JbMaterial) -> None:
+        """Replace duplicate materials (.001, .002, ...) with the given base material."""
+
     # ------------------------------------------------------------------
     # Container
     # ------------------------------------------------------------------

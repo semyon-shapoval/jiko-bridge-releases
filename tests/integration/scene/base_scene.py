@@ -35,6 +35,16 @@ class BaseScene(ABC):
     def create_scene_object(self, name: str, parent: Optional[Any] = None) -> Any:
         """Create a new object in the scene."""
         raise NotImplementedError
+    
+    @abstractmethod
+    def create_scene_material(self, name: str) -> Any:
+        """Create a new material in the scene."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all_materials(self) -> list[Any]:
+        """Return a list of all materials in the current scene."""
+        raise NotImplementedError
 
     @abstractmethod
     def find_container_by_name(self, name: str) -> Optional[Any]:

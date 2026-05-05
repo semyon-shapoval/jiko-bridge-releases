@@ -55,6 +55,21 @@ class Scene(BaseScene):
         obj.SetBit(c4d.BIT_ACTIVE)
         c4d.EventAdd()
         return obj
+    
+    def create_scene_material(self, name: str) -> c4d.BaseMaterial:
+        material = c4d.BaseMaterial(c4d.Mmaterial)
+        material.SetName(name)
+        self.source.InsertMaterial(material)
+        c4d.EventAdd()
+        return material
+    
+    def get_all_materials(self) -> list[c4d.BaseMaterial]:
+        materials = []
+        mat = self.source.GetFirstMaterial()
+        while mat:
+            materials.append(mat)
+            mat = mat.GetNext()
+        return materials
 
     def find_container_by_name(self, name: str) -> Optional[c4d.BaseObject]:
         return self._source.SearchObject(name)

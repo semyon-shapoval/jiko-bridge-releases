@@ -3,6 +3,7 @@ Tree scene helpers for Jiko Bridge Blender plugin
 Code by Semyon Shapoval, 2026
 """
 
+import re
 from typing import Generator, Optional
 
 import bpy
@@ -131,3 +132,10 @@ class JbSceneObjects(JbSceneABC):
             depth += 1
             current = current.parent
         return depth
+
+    def merge_duplicates_materials(self, material) -> None:
+        pattern = re.compile(r"^" + re.escape(material.name) + r"\.\d+$")
+        duplicates = [m for m in bpy.data.materials if pattern.match(m.name)]
+        for dup in duplicates:
+            dup.user_remap(material)
+            bpy.data.materials.remove(dup)

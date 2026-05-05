@@ -95,7 +95,9 @@ class JbAssetImporter(JbAssetImporterProtocol):
                     container = self._create_model(asset, file)
                     self._convert_to_instances(container)
                 case "material":
-                    self.materials.import_material(asset, file)
+                    mat = self.materials.import_material(asset, file)
+                    if mat:
+                        self.scene.merge_duplicates_materials(mat)
                 case _:
                     logger.warning("Unsupported bridge type: %s", file.bridge_type)
 

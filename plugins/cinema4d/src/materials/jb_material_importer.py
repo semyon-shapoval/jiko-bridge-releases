@@ -3,6 +3,8 @@ Material importer for Cinema 4D.
 Code by Semyon Shapoval, 2026
 """
 
+from typing import Optional
+
 import c4d
 from src.jb_types import AssetModel, AssetFile, JbSource
 from src.materials import (
@@ -52,11 +54,11 @@ class JbMaterialImporter:
             return self._standard
         return self._standard
 
-    def import_material(self, asset: AssetModel, file: AssetFile) -> None:
+    def import_material(self, asset: AssetModel, file: AssetFile) -> Optional[c4d.BaseMaterial]:
         """Import a single material file into the scene."""
         if file.asset_type is None or file.filepath is None:
             logger.error("Material file is missing type or path")
-            return
+            return None
 
         renderer = self._get_material_renderer()
         channel = file.asset_type.lower()
@@ -73,3 +75,5 @@ class JbMaterialImporter:
         renderer.apply_channel(material, channel, path)
 
         c4d.EventAdd()
+
+        return material
