@@ -73,8 +73,6 @@ class JbScene(JbSceneFile):
         name = self.source.GetDocumentName()
         if path and name:
             return os.path.join(path, name)
-        else:
-            self.logger.warning(
-                "Project filepath is not set. Please save the project before exporting."
-            )
+
+        self.logger.warning("Please save the project before exporting.")
         return None
