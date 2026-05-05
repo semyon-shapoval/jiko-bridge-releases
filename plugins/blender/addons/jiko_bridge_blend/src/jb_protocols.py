@@ -211,6 +211,10 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     ) -> Optional[str]:
         """Copy objects to isolated scene, replace instances, export."""
 
+    @abstractmethod
+    def get_project_filepath(self) -> Optional[str]:
+        """Return the current project filepath, if it exists."""
+
 
 # Asset Protocols
 

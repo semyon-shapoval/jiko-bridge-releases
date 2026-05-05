@@ -3,6 +3,7 @@ High-level scene operations for Cinema 4D.
 Code by Semyon Shapoval, 2026
 """
 
+import os
 from typing import Optional
 from logging import Logger
 
@@ -65,3 +66,15 @@ class JbScene(JbSceneFile):
             self._make_editable(editable_objects, tmp_doc)
             self._project_scale(tmp_doc, 0.01)
             return self.export_file(ext)
+
+    def get_project_filepath(self) -> Optional[str]:
+        """Return the current project filepath, if it exists."""
+        path = self.source.GetDocumentPath()
+        name = self.source.GetDocumentName()
+        if path and name:
+            return os.path.join(path, name)
+        else:
+            self.logger.warning(
+                "Project filepath is not set. Please save the project before exporting."
+            )
+        return None

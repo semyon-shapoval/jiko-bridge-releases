@@ -27,8 +27,10 @@ class JbAssetExporter(JbAssetExporterProtocol):
         if asset_containers:
             for container in asset_containers:
                 self._update_asset(container)
-        else:
+        elif selected_objects:
             self._create_new_asset(selected_objects)
+        else:
+            self._export_project()
 
     def export_message(self) -> str:
         selected_objects, asset_containers = self._collect_data()
@@ -41,7 +43,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
                 f"Create new asset with {len(selected_objects)} object(s)?"
             )
 
-        return "Export Blender project."
+        return "Export project."
 
     def _collect_data(self):
         selected_objects = self.scene.get_selection()
@@ -110,3 +112,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
             container, _ = self.scene.get_or_create_asset_container(asset, file)
             self.scene.move_objects_to_container(objects, container)
             logger.info("Asset '%s' created with type '%s'.", asset.asset_name, file.asset_type)
+
+    def _export_project(self) -> None:
+        if filepath := self.scene.get_project_filepath():
+            self.api.create_asset(AssetModel(files=[AssetFile(filepath=filepath)]))

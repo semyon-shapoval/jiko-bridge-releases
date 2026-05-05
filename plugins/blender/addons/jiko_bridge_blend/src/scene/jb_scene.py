@@ -46,3 +46,11 @@ class JbScene(JBSceneTemp):
             copies = list(col.objects)
             self.replace_instances_with_placeholders(copies, temp)
             return self.export_file(ext)
+
+    def get_project_filepath(self) -> Optional[str]:
+        """Get the current Blender project file path."""
+        filepath = bpy.data.filepath
+        if not filepath:
+            self.logger.warning("Current Blender project is not saved.")
+            return None
+        return filepath
