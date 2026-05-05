@@ -101,15 +101,23 @@ class JbSceneContainer(JbSceneObjects):
             container.objects.unlink(obj)
             bpy.data.objects.remove(obj, do_unlink=True)
 
-    def cleanup_empty_objects(self, container) -> None:
+    def cleanup_container(self, container) -> None:
         for obj in list(container.objects):
             if obj.type == "EMPTY" and obj.instance_type != "COLLECTION" and not obj.children:
                 bpy.data.objects.remove(obj, do_unlink=True)
         for child in container.children:
-            self.cleanup_empty_objects(child)
+            self.cleanup_container(child)
 
     def move_objects_to_container(self, objects, container) -> None:
+        moved = set()
+        objects = self.walk(objects)
+
         for obj in objects:
-            for col in list(obj.users_collection):
-                col.objects.unlink(obj)
-            container.objects.link(obj)
+            if isinstance(obj, bpy.types.Object):
+                if obj in moved:
+                    continue
+                moved.add(obj)
+                for col in list(obj.users_collection):
+                    col.objects.unlink(obj)
+                if container not in obj.users_collection:
+                    container.objects.link(obj)

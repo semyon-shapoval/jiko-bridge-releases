@@ -28,7 +28,9 @@ class JbCommandsPopup:
         """Export asset to Jiko Bridge."""
         self.doc.StartUndo()
         try:
-            self.asset_export.export_asset()
+            msg = self.asset_export.export_message()
+            if c4d.gui.QuestionDialog(msg):
+                self.asset_export.export_asset()
         finally:
             self.doc.EndUndo()
             c4d.EventAdd()
@@ -37,7 +39,9 @@ class JbCommandsPopup:
         """Import asset from Jiko Bridge."""
         self.doc.StartUndo()
         try:
-            self.asset_import.import_assets()
+            msg = self.asset_import.import_message()
+            if c4d.gui.QuestionDialog(msg):
+                self.asset_import.import_assets()
         finally:
             self.doc.EndUndo()
             c4d.EventAdd()
@@ -68,12 +72,13 @@ class JbCommands:
     """Main command for headless execution."""
 
     def __init__(self, source: JbSource):
-        self._commands = JbCommandsPopup(source)
+        self.asset_import = JbAssetImporter(source)
+        self.asset_export = JbAssetExporter(source)
 
     def export_asset(self) -> None:
         """Export asset to Jiko Bridge."""
-        self._commands.export_asset()
+        return self.asset_export.export_asset()
 
     def import_asset(self) -> None:
         """Import asset from Jiko Bridge."""
-        self._commands.import_asset()
+        return self.asset_import.import_assets()

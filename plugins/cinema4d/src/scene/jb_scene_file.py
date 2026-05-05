@@ -46,7 +46,7 @@ class JbSceneFile(JbSceneTemp):
         result = c4d.documents.MergeDocument(
             doc, file_path, c4d.SCENEFILTER_OBJECTS | c4d.SCENEFILTER_MATERIALS
         )
-        self.logger.info("Import took %.3fs: %s", time.time() - t, file_path)
+        self.logger.debug("Import took %.3fs: %s", time.time() - t, file_path)
         return result
 
     def _save_document(self, file_path: str, format_id: int) -> bool:
@@ -56,7 +56,7 @@ class JbSceneFile(JbSceneTemp):
             return False
         t = time.time()
         result = c4d.documents.SaveDocument(doc, file_path, c4d.SAVEDOCUMENTFLAGS_NONE, format_id)
-        self.logger.info("Export took %.3fs: %s", time.time() - t, file_path)
+        self.logger.debug("Export took %.3fs: %s", time.time() - t, file_path)
         return result
 
     def import_file(self, file_path) -> bool:
@@ -83,6 +83,7 @@ class JbSceneFile(JbSceneTemp):
         if imex:
             imex[c4d.FBXIMPORT_CAMERAS] = True
             imex[c4d.FBXIMPORT_LIGHTS] = True
+            imex[c4d.FBXIMPORT_SINGLE_MAT_SELECTIONTAGS] = False
 
         result = self._merge_document(file_path)
         if not result:
@@ -131,7 +132,7 @@ class JbSceneFile(JbSceneTemp):
         return os.path.join(self.cache_path, filename)
 
     def _select_all(self, doc: c4d.documents.BaseDocument) -> None:
-        objects = self.walk(doc.GetFirstObject())
+        objects = self.walk(doc.GetObjects())
         for obj in objects:
             obj.SetBit(c4d.BIT_ACTIVE)
 
@@ -161,12 +162,13 @@ class JbSceneFile(JbSceneTemp):
             imex[c4d.FBXEXPORT_SELECTION_ONLY] = True
             imex[c4d.FBXEXPORT_ASCII] = False
             imex[c4d.FBXEXPORT_SCALE] = 0.01
+            imex[c4d.FBXEXPORT_EMBED_TEXTURES] = False
 
         if not self._save_document(file_path, c4d.FORMAT_FBX_EXPORT):
             self.logger.error("FBX export failed")
             return None
 
-        self.logger.info("FBX exported: %s", file_path)
+        self.logger.debug("FBX exported: %s", file_path)
         return file_path
 
     def _export_alembic(self, file_path: str) -> Optional[str]:
@@ -185,7 +187,7 @@ class JbSceneFile(JbSceneTemp):
             self.logger.error("Alembic export failed")
             return None
 
-        self.logger.info("Alembic exported: %s", file_path)
+        self.logger.debug("Alembic exported: %s", file_path)
         return file_path
 
     def _export_obj(self, _file_path: str) -> Optional[str]:

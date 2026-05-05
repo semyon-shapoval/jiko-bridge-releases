@@ -13,7 +13,7 @@ from .src.jb_utils import register_keymap, reload_plugin_modules, unregister_key
 class JB_OT_AssetImport(bpy.types.Operator):  # pylint: disable=invalid-name
     """Import asset from Jiko Bridge."""
 
-    bl_idname = "jiko_bridge.asset_import"
+    bl_idname = "jiko_bridge.import_asset"
     bl_label = "Import Asset"
     bl_description = "Import active asset from Jiko Bridge"
     bl_options = {"REGISTER", "UNDO"}
@@ -32,7 +32,7 @@ class JB_OT_AssetImport(bpy.types.Operator):  # pylint: disable=invalid-name
 class JB_OT_AssetExport(bpy.types.Operator):  # pylint: disable=invalid-name
     """Export asset to Jiko Bridge."""
 
-    bl_idname = "jiko_bridge.asset_export"
+    bl_idname = "jiko_bridge.export_asset"
     bl_label = "Export Asset"
     bl_description = "Export selected objects as a new asset or update existing"
     bl_options = {"REGISTER", "UNDO"}

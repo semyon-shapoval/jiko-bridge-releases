@@ -27,21 +27,26 @@ venv:
 diff:
 	code --diff "$(C4D_PLUGIN_PATH)/src/jb_protocols.py" "$(BLENDER_PLUGIN_PATH)/src/jb_protocols.py"
 
+check-diff:
+	@$(PYTHON) scripts/check_diff.py "$(C4D_PLUGIN_PATH)" "$(BLENDER_PLUGIN_PATH)"
+
 c4d:
 	make c4d-lint
 	make c4d-typecheck
 	make c4d-test
 
 c4d-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d tests/integration/cinema4d
 
 c4d-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d tests/integration/cinema4d
 
 c4d-test:
+	clear
 	@echo "Running C4D tests..."
+	set "JB_ENV=test" && \
 	set "g_additionalModulePath=$(C4D_PLUGIN_PATH)" && \
-	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/c4d/test_c4d_flows.py"
+	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/cinema4d/c4d_test_flows.py"
 
 blend:
 	make blend-lint
@@ -63,5 +68,6 @@ blend-typecheck:
 blend-test:
 	clear
 	@echo "Running Blender tests..."
+	set "JB_ENV=test" && \
 	set "BLENDER_USER_SCRIPTS=$(ROOT_ADDONS_PATH)" && \
-	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/blender/test_blend_flows.py"
+	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/blender/blend_test_flows.py"

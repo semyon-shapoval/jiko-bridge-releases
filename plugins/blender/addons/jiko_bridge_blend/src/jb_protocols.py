@@ -73,6 +73,10 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
     def remove_object(self, obj: JbObject) -> None:
         """Remove the given object from the scene."""
 
+    @abstractmethod
+    def get_depth(self, obj: JbData) -> int:
+        """Return the depth of the given object in the hierarchy."""
+
     # ------------------------------------------------------------------
     # Container
     # ------------------------------------------------------------------
@@ -118,12 +122,16 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         """Move objects into target collection."""
 
     @abstractmethod
-    def cleanup_empty_objects(self, container: JbContainer) -> None:
+    def cleanup_container(self, container: JbContainer) -> None:
         """Remove empty objects that have no children and no data."""
 
     @abstractmethod
     def clear_container(self, container: JbContainer) -> None:
         """Remove all objects from the container."""
+
+    @abstractmethod
+    def get_children(self, obj: JbObject | JbContainer) -> list[JbObject | JbContainer]:
+        """Return the children of the given object or container."""
 
     # ------------------------------------------------------------------
     # Instance

@@ -8,23 +8,18 @@ from copy import copy
 from inspect import signature
 from typing import Any, Callable
 
-from plugins.blender.addons.jiko_bridge_blend.src.jb_api import JbAPI
-from plugins.blender.addons.jiko_bridge_blend.src.jb_types import AssetModel
-
 logging.basicConfig(
     level=logging.DEBUG,
     format='[Test Jiko] %(levelname)s: %(message)s',
 )
+
 
 def get_logger(name: str) -> logging.Logger:
     """Returns a logger instance with the specified name."""
     return logging.getLogger(name)
 
 
-def make_injected_create_asset(
-    asset_model: AssetModel,
-    original_create_asset: Callable[..., Any],
-) -> tuple[dict[str, Any], Callable[..., Any]]:
+def make_injected_create_asset(asset_model: Any, original_create_asset: Callable[..., Any]):
     """Mock for files creation asset api"""
     payload_capture: dict[str, Any] = {}
     original_signature = signature(original_create_asset)
@@ -57,15 +52,3 @@ def make_injected_create_asset(
         return original_create_asset(**merged)
 
     return payload_capture, injected_create_asset
-
-
-def make_injected_active_asset(
-    asset_model: AssetModel,
-) -> Callable[..., Any]:
-    """Mock for active asset retrieval api"""
-
-    def injected_active_asset(*_args, **_kwargs) -> Any:
-        api = JbAPI()
-        return api.get_asset(asset_model)
-
-    return injected_active_asset

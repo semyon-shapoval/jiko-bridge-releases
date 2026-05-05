@@ -12,32 +12,37 @@ from src.jb_types import JbData, JbObject, JbMaterial
 class JbSceneObjects(JbSceneABC):
     """Traversal and querying of Cinema 4D object hierarchies."""
 
-    def get_selection(self, select_type="objects") -> list[JbObject | JbMaterial]:
-        if select_type == "objects":
-            return self.source.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
-        if select_type == "materials":
-            return self.source.GetActiveMaterials()
-        return []
+    def get_selection(self) -> list[JbObject | JbMaterial]:
+        result = []
+        materials = self.source.GetActiveMaterials()
+        if materials:
+            result.extend(materials)
+        objects = self.source.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
+        if objects:
+            result.extend(objects)
+        return result
 
     def walk(self, root) -> list[JbData]:
         if not root:
             return []
         return list(self._walk(root))
 
-    def _walk(self, root):
+    def _walk(self, root: list[JbData]):
         if root is None:
             return
 
-        if isinstance(root, (list, tuple)):
-            for o in root:
-                yield from self._walk(o)
-            return
+        def walk_objects(obj):
+            yield obj
+            child = obj.GetDown()
+            while child:
+                yield from walk_objects(child)
+                child = child.GetNext()
 
-        yield root
-        child = root.GetDown()
-        while child:
-            yield from self._walk(child)
-            child = child.GetNext()
+        for item in root:
+            if isinstance(item, c4d.BaseObject):
+                yield from walk_objects(item)
+            elif isinstance(item, c4d.BaseMaterial):
+                yield item
 
     def get_materials_from_objects(self, objects) -> list[JbMaterial]:
         materials = []
@@ -56,11 +61,22 @@ class JbSceneObjects(JbSceneABC):
 
         return materials
 
+    def get_children(self, obj) -> list[JbObject]:
+        return obj.GetChildren() or []
+
     def copy_object_transform(self, obj, target_obj) -> None:
         obj.SetMg(target_obj.GetMg())
 
     def remove_object(self, obj) -> None:
         obj.Remove()
+
+    def get_depth(self, obj) -> int:
+        depth = 0
+        current = obj
+        while current.GetUp():
+            depth += 1
+            current = current.GetUp()
+        return depth
 
     def _set_protection_tag(self, obj: c4d.BaseObject) -> None:
         if obj is None:

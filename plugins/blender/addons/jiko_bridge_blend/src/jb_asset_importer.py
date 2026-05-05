@@ -19,7 +19,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
     def __init__(self, source: JbSource):
         self.api = JbAPI()
         self.scene = JbScene(source)
-        self.materials = JbMaterialImporter()
+        self.materials = JbMaterialImporter(source)
 
     def import_assets(self) -> None:
         assets = self._collect_assets()
@@ -128,4 +128,4 @@ class JbAssetImporter(JbAssetImporterProtocol):
                 self.scene.move_objects_to_container([instance], container)
                 self.scene.remove_object(obj)
 
-        self.scene.cleanup_empty_objects(container)
+        self.scene.cleanup_container(container)

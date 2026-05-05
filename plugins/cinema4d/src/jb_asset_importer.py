@@ -21,7 +21,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
         self.scene = JbScene(source)
         self.materials = JbMaterialImporter(source)
 
-    def import_assets(self) -> None:
+    def import_assets(self):
         assets = self._collect_assets()
 
         for asset in assets:
@@ -108,7 +108,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
         return container
 
     def _convert_to_instances(self, container) -> None:
-        objects = self.scene.walk(container)
+        objects = self.scene.walk([container])
         for obj in objects:
             if asset_model := self.scene.get_asset_from_placeholder(obj):
                 asset_container = self.scene.get_container(asset_model)
@@ -128,4 +128,4 @@ class JbAssetImporter(JbAssetImporterProtocol):
                 self.scene.move_objects_to_container([instance], container)
                 self.scene.remove_object(obj)
 
-        self.scene.cleanup_empty_objects(container)
+        self.scene.cleanup_container(container)

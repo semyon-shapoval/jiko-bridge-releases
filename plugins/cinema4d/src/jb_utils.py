@@ -12,6 +12,8 @@ from contextlib import contextmanager
 
 import c4d
 
+JB_ENV = os.getenv("JB_ENV", "production")
+
 
 def get_logger(name: str) -> logging.Logger:
     """Get a logger."""
@@ -20,7 +22,11 @@ def get_logger(name: str) -> logging.Logger:
     if logger.handlers:
         return logger
 
-    logger.setLevel(logging.DEBUG)
+    if JB_ENV == "production":
+        logger.setLevel(logging.INFO)
+    else:
+        logger.setLevel(logging.DEBUG)
+
     formatter = logging.Formatter(
         "[Jiko Bridge] %(levelname)s [%(name)s] %(message)s", datefmt="%H:%M:%S"
     )
@@ -29,6 +35,7 @@ def get_logger(name: str) -> logging.Logger:
     console.setLevel(logging.DEBUG)
     console.setFormatter(formatter)
     logger.addHandler(console)
+    logger.propagate = False
 
     return logger
 
@@ -51,6 +58,7 @@ def busy_cursor(status_text: str = ""):
         c4d.gui.SetMousePointer(c4d.MOUSE_NORMAL)
         c4d.StatusClear()
 
+
 def reload_plugin_modules() -> None:
     """Reload plugin modules to ensure the latest code is used."""
     importlib.invalidate_caches()
@@ -72,7 +80,8 @@ def reload_plugin_modules() -> None:
         except (ImportError, ModuleNotFoundError, RuntimeError, SyntaxError) as e:
             print(f"Failed to import {name!r}: {e}")
 
-    print(f"{len(plugin_modules)} modules reloaded.")
+    if JB_ENV != "production":
+        print(f"{len(plugin_modules)} modules reloaded.")
 
 
 def load_arnold_module():

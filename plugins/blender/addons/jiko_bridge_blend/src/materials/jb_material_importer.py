@@ -15,6 +15,8 @@ logger = get_logger(__name__)
 
 class JbMaterialImporter:
     """Material importer that handles Blender materials."""
+    def __init__(self, source):
+        self.source = source
 
     def _merge_duplicates(self, material: bpy.types.Material) -> None:
         """Replace duplicate materials (.001, .002, ...) with the given base material."""

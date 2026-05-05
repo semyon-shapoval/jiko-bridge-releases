@@ -62,8 +62,7 @@ class JbSceneInstance(JbSceneContainer):
                 obj.GetMg(),
                 source,
             )
-            placeholder.InsertBefore(obj)
-            obj.Remove()
+            source.InsertObject(placeholder)
             new_objects.append(placeholder)
 
         return new_objects
@@ -72,7 +71,7 @@ class JbSceneInstance(JbSceneContainer):
         pack_name = asset_model.pack_name
         asset_name = asset_model.asset_name
 
-        material = c4d.BaseMaterial()
+        material = c4d.BaseMaterial(c4d.Mmaterial)
         material.SetName(f"{pack_name}__{asset_name}")
 
         source.InsertMaterial(material)

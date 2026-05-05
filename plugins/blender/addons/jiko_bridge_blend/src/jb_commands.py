@@ -22,8 +22,8 @@ class JB_PT_Commands(bpy.types.Panel):  # pylint: disable=invalid-name
             return
 
         col = layout.column(align=True)
-        col.operator("jiko_bridge.asset_import", text="Import Asset", icon="IMPORT")
-        col.operator("jiko_bridge.asset_export", text="Export Asset", icon="EXPORT")
+        col.operator("jiko_bridge.import_asset", text="Import Asset", icon="IMPORT")
+        col.operator("jiko_bridge.export_asset", text="Export Asset", icon="EXPORT")
         col.separator()
         col.operator("jiko_bridge.reload", text="Reload Addon", icon="FILE_REFRESH")
 
@@ -40,6 +40,6 @@ class JB_MT_PIE_AssetActions(bpy.types.Menu):  # pylint: disable=invalid-name
             return
 
         pie = layout.menu_pie()
-        pie.operator("jiko_bridge.asset_import", text="Import Asset", icon="IMPORT")
-        pie.operator("jiko_bridge.asset_export", text="Export Asset", icon="EXPORT")
+        pie.operator("jiko_bridge.import_asset", text="Import Asset", icon="IMPORT")
+        pie.operator("jiko_bridge.export_asset", text="Export Asset", icon="EXPORT")
         pie.operator("jiko_bridge.reload", text="Reload Addon", icon="FILE_REFRESH")

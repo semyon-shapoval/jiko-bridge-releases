@@ -110,10 +110,12 @@ class JbSceneContainer(JbSceneObjects):
             obj.Remove()
             obj.InsertUnder(container)
 
-    def cleanup_empty_objects(self, container) -> None:
+    def cleanup_container(self, container) -> None:
         for obj in container.GetChildren():
             if obj.GetType() in (c4d.Onull, c4d.Oalembicgenerator) and len(obj.GetChildren()) == 0:
                 obj.Remove()
+
+        c4d.CallCommand(12168)
 
     def clear_container(self, container) -> None:
         """Unified API: remove all children from asset null."""

@@ -42,18 +42,6 @@ class JBSceneTemp(JbSceneFile):
                 except RuntimeError:
                     pass
 
-    def _get_depth(self, src: JbData) -> int:
-        depth = 0
-        if isinstance(src, (bpy.types.Object)):
-            current = src.parent
-        else:
-            return depth
-
-        while current:
-            depth += 1
-            current = current.parent
-        return depth
-
     def _copy_source(
         self,
         src: list[JbData],
@@ -67,7 +55,7 @@ class JBSceneTemp(JbSceneFile):
             self.logger.warning("No objects found in source")
             return
 
-        for obj in sorted(objects, key=self._get_depth):
+        for obj in sorted(objects, key=self.get_depth):
             if isinstance(obj, bpy.types.Collection):
                 continue
 

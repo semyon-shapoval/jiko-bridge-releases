@@ -44,7 +44,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
         return "Export Blender project."
 
     def _collect_data(self):
-        selected_objects = self.scene.walk(self.scene.get_selection())
+        selected_objects = self.scene.get_selection()
         asset_containers = self.scene.get_containers_from_objects(selected_objects)
         return selected_objects, asset_containers
 
@@ -59,15 +59,7 @@ class JbAssetExporter(JbAssetExporterProtocol):
             logger.error("Failed to fetch asset '%s'.", asset_model.asset_name)
             return
 
-        if len(asset.files) != 1:
-            logger.error(
-                "Asset '%s' has %d files. Expected exactly 1 file for update.",
-                asset_model.asset_name,
-                len(asset.files),
-            )
-            return
-
-        file = asset.files[0]
+        file = next(iter(asset.files))
         if not file.filepath:
             logger.error(
                 "Filepath missing for asset '%s'. Cannot export.",
@@ -84,7 +76,14 @@ class JbAssetExporter(JbAssetExporterProtocol):
             )
             return
 
-        filepath = self.scene.export_with_temp([container], ext)
+        objects = self.scene.get_children(container)
+        if not objects:
+            logger.error(
+                "No objects found in container for asset '%s'. Cannot export.",
+                asset_model.asset_name,
+            )
+            return
+        filepath = self.scene.export_with_temp(objects, ext)
 
         if not filepath:
             return

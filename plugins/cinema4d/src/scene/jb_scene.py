@@ -53,8 +53,15 @@ class JbScene(JbSceneFile):
             unit_scale=c4d.DOCUMENT_UNIT_M,
             debug=False,
         ) as tmp_doc:
-            self.replace_instances_with_placeholders(src, tmp_doc)
+            objects = sorted(self.walk(tmp_doc.GetObjects()), key=self.get_depth, reverse=True)
+            self.replace_instances_with_placeholders(
+                objects,
+                tmp_doc,
+            )
             tmp_doc.ExecutePasses(None, True, True, True, c4d.BUILDFLAGS_NONE)
-            self._make_editable_recursive(tmp_doc.GetFirstObject(), tmp_doc)
+            editable_objects = sorted(
+                self.walk(tmp_doc.GetObjects()), key=self.get_depth, reverse=True
+            )
+            self._make_editable(editable_objects, tmp_doc)
             self._project_scale(tmp_doc, 0.01)
             return self.export_file(ext)

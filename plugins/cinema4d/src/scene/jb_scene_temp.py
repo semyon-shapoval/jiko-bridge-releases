@@ -7,6 +7,7 @@ from contextlib import contextmanager
 
 import c4d
 from src.scene.jb_scene_instance import JbSceneInstance
+from src.jb_utils import JB_ENV
 
 
 class JbSceneTemp(JbSceneInstance):
@@ -31,7 +32,7 @@ class JbSceneTemp(JbSceneInstance):
         try:
             yield tmp_doc
         finally:
-            if debug:
+            if debug or JB_ENV == "test":
                 c4d.documents.InsertBaseDocument(tmp_doc)
                 c4d.documents.SetActiveDocument(tmp_doc)
                 c4d.EventAdd()
@@ -40,7 +41,12 @@ class JbSceneTemp(JbSceneInstance):
 
             self._temp_source = None
 
-    def _copy_source(self, src, dst, parent) -> None:
+    def _copy_source(
+        self,
+        src: c4d.documents.BaseDocument,
+        dst: c4d.documents.BaseDocument,
+        parent: c4d.BaseObject,
+    ) -> None:
         mat = src.GetFirstMaterial()
         while mat:
             next_mat = mat.GetNext()
@@ -48,7 +54,7 @@ class JbSceneTemp(JbSceneInstance):
             dst.InsertMaterial(mat)
             mat = next_mat
 
-        objects = self.walk(src.GetFirstObject())
+        objects = src.GetObjects()
         for obj in objects:
             obj.Remove()
             dst.InsertObject(obj)
@@ -60,7 +66,7 @@ class JbSceneTemp(JbSceneInstance):
     # ------------------------------------------------------------------
 
     def _project_scale(self, doc: c4d.documents.BaseDocument, factor: float = 0.01) -> None:
-        objects = self.walk(doc.GetFirstObject())
+        objects = self.walk(doc.GetObjects())
         for obj in objects:
             if obj.IsInstanceOf(c4d.Opolygon):
                 points = obj.GetAllPoints()
@@ -71,38 +77,53 @@ class JbSceneTemp(JbSceneInstance):
             pos = obj.GetRelPos()
             obj.SetRelPos(pos * factor)
 
-    def _make_editable_recursive(
+    def _make_editable(
         self,
-        obj: c4d.BaseObject | None,
+        objects: list[c4d.BaseObject],
         doc: c4d.documents.BaseDocument,
     ) -> None:
-        """Рекурсивно конвертирует генераторы/инстансы в полигоны (MCOMMAND_MAKEEDITABLE)."""
-        if obj is None:
-            return
-
-        # Сохраняем соседей и родителя до конвертации — после они могут стать невалидными
-        next_obj = obj.GetNext()
-        parent = obj.GetUp()
-
-        # Сначала рекурсивно обходим детей
-        self._make_editable_recursive(obj.GetDown(), doc)
-
-        if not obj.IsAlive() or obj.IsInstanceOf(c4d.Opolygon):
-            self._make_editable_recursive(next_obj, doc)
-            return
-
-        result = c4d.utils.SendModelingCommand(
-            command=c4d.MCOMMAND_MAKEEDITABLE,
-            list=[obj],
-            mode=c4d.MODELINGCOMMANDMODE_ALL,
-            doc=doc,
-        )
-
-        if isinstance(result, list):
-            for new_obj in reversed(result):
-                if parent:
-                    new_obj.InsertUnder(parent)
-                else:
+        """Convert generators to polygons (MCOMMAND_MAKEEDITABLE)."""
+        for item in objects:
+            if not item.IsAlive():
+                continue
+            if item.IsInstanceOf(c4d.Opolygon) or item.IsInstanceOf(c4d.Onull):
+                continue
+            parent = item.GetUp()
+            children = list(item.GetChildren())
+            result = c4d.utils.SendModelingCommand(
+                command=c4d.MCOMMAND_MAKEEDITABLE,
+                list=[item],
+                mode=c4d.MODELINGCOMMANDMODE_ALL,
+                doc=doc,
+            )
+            if isinstance(result, list):
+                for new_obj in result:
                     doc.InsertObject(new_obj)
+                    if parent:
+                        new_obj.InsertUnder(parent)
+                    for child in children:
+                        child.Remove()
+                        child.InsertUnder(new_obj)
 
-        self._make_editable_recursive(next_obj, doc)
+    def _remove_unused_materials(
+        self,
+        doc: c4d.documents.BaseDocument,
+    ) -> None:
+        used_mats = set()
+
+        objects = self.walk(doc.GetObjects())
+        for obj in objects:
+            tag = obj.GetFirstTag()
+            while tag:
+                if tag.GetType() == c4d.Ttexture:
+                    mat = tag[c4d.TEXTURETAG_MATERIAL]
+                    if mat is not None:
+                        used_mats.add(mat)
+                tag = tag.GetNext()
+
+        mat = doc.GetFirstMaterial()
+        while mat:
+            next_mat = mat.GetNext()
+            if mat not in used_mats:
+                mat.Remove()
+            mat = next_mat

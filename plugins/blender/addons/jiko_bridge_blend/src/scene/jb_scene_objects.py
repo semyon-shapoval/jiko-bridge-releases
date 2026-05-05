@@ -8,7 +8,7 @@ from typing import Generator, Optional
 import bpy
 
 
-from ..jb_types import JbMaterial, JbData
+from ..jb_types import JbMaterial, JbData, JbObject, JbContainer
 from ..jb_protocols import JbSceneABC
 
 
@@ -54,15 +54,15 @@ class JbSceneObjects(JbSceneABC):
             for child_col in collection.children:
                 yield from walk_collection(child_col)
 
-        for obj in root:
-            if isinstance(obj, bpy.types.Object):
-                yield from walk_object(obj)
-            elif isinstance(obj, bpy.types.Collection):
-                yield from walk_collection(obj)
-            elif isinstance(obj, bpy.types.Material):
-                if obj not in seen:
-                    seen.add(obj)
-                    yield obj
+        for item in root:
+            if isinstance(item, bpy.types.Object):
+                yield from walk_object(item)
+            elif isinstance(item, bpy.types.Collection):
+                yield from walk_collection(item)
+            elif isinstance(item, bpy.types.Material):
+                if item not in seen:
+                    seen.add(item)
+                    yield item
 
     def get_selection(self) -> list[JbData]:
         ctx = self.source
@@ -112,3 +112,23 @@ class JbSceneObjects(JbSceneABC):
 
     def remove_object(self, obj) -> None:
         bpy.data.objects.remove(obj, do_unlink=True)
+
+    def get_children(self, obj) -> list[JbObject | JbContainer]:
+        if isinstance(obj, bpy.types.Object):
+            return list(obj.children)
+        if isinstance(obj, bpy.types.Collection):
+            return list(obj.objects) + list(obj.children)
+        return []
+    
+
+    def get_depth(self, src: JbData) -> int:
+        depth = 0
+        if isinstance(src, (bpy.types.Object)):
+            current = src.parent
+        else:
+            return depth
+
+        while current:
+            depth += 1
+            current = current.parent
+        return depth
