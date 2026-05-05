@@ -56,7 +56,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
 
         if materials:
             for mat in materials:
-                mat_name = mat.name
+                mat_name = self.materials.get_material_name(mat)
                 asset_model = AssetModel.from_string(mat_name)
                 if asset_model:
                     asset = self.api.get_asset(asset_model)
@@ -66,7 +66,9 @@ class JbAssetImporter(JbAssetImporterProtocol):
                     asset = self.api.get_asset_by_search(mat_name)
                     if asset:
                         assets.append(asset)
-                        mat.name = f"{asset.pack_name}__{asset.asset_name}"
+                        self.materials.set_material_name(
+                            mat, f"{asset.pack_name}__{asset.asset_name}"
+                        )
             return list(assets)
 
         if containers:

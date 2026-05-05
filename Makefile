@@ -30,6 +30,15 @@ diff:
 diff-all:
 	@$(PYTHON) scripts/check_diff.py "$(C4D_PLUGIN_PATH)" "$(BLENDER_PLUGIN_PATH)"
 
+lint:
+	make c4d-lint
+	make blend-lint
+	make diff-all
+
+typecheck:
+	make c4d-typecheck
+	make blend-typecheck
+
 c4d:
 	make c4d-lint
 	make c4d-typecheck

@@ -53,7 +53,7 @@ class Scene(BaseScene):
                 return found
         return None
 
-    def _update(self):
+    def update(self):
         view_layer = bpy.context.view_layer
         if view_layer:
             view_layer.update()
@@ -85,7 +85,7 @@ class Scene(BaseScene):
             obj.matrix_parent_inverse = parent.matrix_world.inverted()
 
         obj.select_set(True)
-        self._update()
+        self.update()
 
         return obj
 
@@ -108,7 +108,7 @@ class Scene(BaseScene):
         self._view_layer.objects.active = None
         self._view_layer.active_layer_collection = self._view_layer.layer_collection
 
-        self._update()
+        self.update()
 
     def ensure_loaded(self, addon_name: str | None = None) -> None:
         addon_name = addon_name or self.ADDON_NAME
@@ -119,7 +119,7 @@ class Scene(BaseScene):
     def reset_scene(self, addon_name: str | None = None) -> None:
         bpy.ops.wm.read_factory_settings(use_empty=True)
         self.ensure_loaded(addon_name)
-        self._update()
+        self.update()
 
     def save_document(self, filename: str) -> str:
         logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
@@ -142,7 +142,7 @@ class Scene(BaseScene):
 
                 self._view_layer.active_layer_collection = layer_collection
 
-        self._update()
+        self.update()
 
     def apply_material_to_object(self, obj: bpy.types.Object, material: bpy.types.Material) -> bool:
         if isinstance(obj.data, bpy.types.Mesh):
@@ -165,3 +165,6 @@ class Scene(BaseScene):
             for obj in bpy.data.objects
             if obj.instance_type == "COLLECTION" and obj.instance_collection is not None
         ]
+
+    def get_children_container(self, container: bpy.types.Collection) -> list[bpy.types.Object]:
+        return list(container.objects)

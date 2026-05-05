@@ -12,6 +12,7 @@ from src.materials import (
     JbArnoldNodeMaterial,
     JbStandardNodeMaterial,
 )
+from src.jb_protocols import JbMaterialImporterABC
 from src.jb_utils import get_logger
 
 ARNOLD_ID = 1029988
@@ -21,7 +22,7 @@ VIEWPORT_ID = 300001061
 logger = get_logger(__name__)
 
 
-class JbMaterialImporter:
+class JbMaterialImporter(JbMaterialImporterABC):
     """Material importer that handles different renderers."""
 
     def __init__(self, source: JbSource):
@@ -43,6 +44,13 @@ class JbMaterialImporter:
                 return mat
             mat = mat.GetNext()
         return None
+
+    def get_material_name(self, material: c4d.BaseMaterial) -> str | None:
+        return material.GetName() if material else None
+
+    def set_material_name(self, material: c4d.BaseMaterial, name: str):
+        if material:
+            material.SetName(name)
 
     def _get_material_renderer(self):
         render_id = self.source.GetActiveRenderData()[c4d.RDATA_RENDERENGINE]

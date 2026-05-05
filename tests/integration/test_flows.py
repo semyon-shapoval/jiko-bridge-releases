@@ -146,6 +146,7 @@ class BaseJikoBridgeTests(unittest.TestCase):
             for _ in range(count):
                 self.scene.call_command("import_asset")
 
+        self.scene.update()
         return patch_obj
 
     def reimport_flow(self, container: Any) -> None:
@@ -160,6 +161,15 @@ class BaseJikoBridgeTests(unittest.TestCase):
         self.assertEqual(len(instances), count)
         return instances, patch_obj
 
+    def import_material_flow(self) -> None:
+        """Import by selected objects"""
+        importer_module = self.scene.import_module("src.jb_asset_importer")
+        importer = importer_module.JbAssetImporter(self.scene.source)
+        import_message = importer.import_message()
+        self.assertIn("material", import_message.lower())
+
+        self.scene.call_command("import_asset")
+
     def test_full_flow(self) -> None:
         """Test the full flow of Jiko Bridge"""
         parent = self.scene.create_scene_object("ExportParent")
@@ -170,7 +180,6 @@ class BaseJikoBridgeTests(unittest.TestCase):
         self.import_active_asset(asset_model=self.asset_mat_1)
         mat = self.scene.find_material_by_name(self.material_name_1)
         assert mat is not None, "Material should be imported successfully"
-
 
         materials = self.scene.get_all_materials()
         assert (
@@ -203,6 +212,15 @@ class BaseJikoBridgeTests(unittest.TestCase):
         self.import_active_asset(asset_model=self.asset_2)
         self.assertIsNotNone(self.scene.find_container_by_name(self.collection_name_2))
         self.assertIsNotNone(self.scene.find_container_by_name(self.collection_name_1))
+
+        objects = self.scene.get_children_container(
+            self.scene.find_container_by_name(self.collection_name_1)
+        )
+
+        self.scene.select_objects(objects)
+        self.import_material_flow()
+        mat = self.scene.find_material_by_name(self.material_name_1)
+        assert mat is not None, "Material should be imported successfully after full flow"
 
 
 if __name__ == "__main__":

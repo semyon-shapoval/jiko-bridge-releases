@@ -216,6 +216,22 @@ class JbSceneABC(ABC):  # pylint: disable=too-many-public-methods
         """Return the current project filepath, if it exists."""
 
 
+class JbMaterialImporterABC(ABC):
+    """Abstract base class for Material Importers."""
+
+    @abstractmethod
+    def get_material_name(self, material: JbMaterial) -> str | None:
+        """Get the name of a material."""
+
+    @abstractmethod
+    def set_material_name(self, material: JbMaterial, name: str):
+        """Set the name of a material."""
+
+    @abstractmethod
+    def import_material(self, asset: AssetModel, file: AssetFile) -> Optional[JbMaterial]:
+        """Import a single material file into the scene."""
+
+
 # Asset Protocols
 
 

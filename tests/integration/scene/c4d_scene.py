@@ -43,6 +43,9 @@ class Scene(BaseScene):
         if plugin is None:
             raise RuntimeError("Jiko Bridge plugin is not loaded in Cinema 4D.")
 
+    def update(self) -> None:
+        c4d.EventAdd()
+
     def create_scene_object(
         self, name: str, parent: c4d.BaseObject | None = None
     ) -> c4d.BaseObject:
@@ -150,6 +153,9 @@ class Scene(BaseScene):
         obj.InsertTag(tag)
         c4d.EventAdd()
         return True
+    
+    def get_children_container(self, container: c4d.BaseObject) -> list[c4d.BaseObject]:
+        return container.GetChildren() if container else []
 
     def reset_scene(self) -> None:
         current = c4d.documents.GetActiveDocument()

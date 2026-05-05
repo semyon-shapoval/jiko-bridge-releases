@@ -32,6 +32,11 @@ class BaseScene(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def update(self) -> None:
+        """Trigger an update or refresh of the scene state."""
+        raise NotImplementedError
+
+    @abstractmethod
     def create_scene_object(self, name: str, parent: Optional[Any] = None) -> Any:
         """Create a new object in the scene."""
         raise NotImplementedError
@@ -89,4 +94,9 @@ class BaseScene(ABC):
     @abstractmethod
     def reset_scene(self) -> None:
         """Reset the scene to a clean state."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_children_container(self, container: Any) -> list[Any]:
+        """Return a list of child objects for the given container."""
         raise NotImplementedError

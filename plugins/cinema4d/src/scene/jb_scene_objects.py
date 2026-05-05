@@ -22,6 +22,7 @@ class JbSceneObjects(JbSceneABC):
         objects = self.source.GetActiveObjects(c4d.GETACTIVEOBJECTFLAGS_0)
         if objects:
             result.extend(objects)
+
         return result
 
     def walk(self, root) -> list[JbData]:
@@ -50,6 +51,10 @@ class JbSceneObjects(JbSceneABC):
         materials = []
 
         for obj in objects:
+            if isinstance(obj, c4d.BaseMaterial):
+                materials.append(obj)
+                continue
+            
             if not obj.IsInstanceOf(c4d.Opolygon):
                 continue
 
