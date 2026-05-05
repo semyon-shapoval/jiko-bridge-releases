@@ -1,5 +1,5 @@
 """
-Integration tests for Jiko Bridge
+Base integration test flows for Jiko Bridge.
 Code by Semyon Shapoval, 2026
 """
 
@@ -7,37 +7,57 @@ import os
 import sys
 import uuid
 import unittest
+import importlib.util
+from typing import Any
 from unittest.mock import patch
 
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, root_dir)
 
-
 # pylint: disable=wrong-import-position disable=import-error
-from plugins.blender.addons.jiko_bridge_blend.src.jb_types import AssetModel, AssetFile
-from tests.integration.blender.blend_scene_helper import BlenderSceneHelper
-from tests.integration.jb_utils import (
-    make_injected_create_asset,
-    get_logger,
-)
+
+from tests.integration.scene.base_scene import BaseScene
+from tests.integration.utils import get_logger, make_injected_create_asset
+
+if importlib.util.find_spec("c4d") is not None:
+    from tests.integration.scene.c4d_scene import Scene
+elif importlib.util.find_spec("bpy") is not None:
+    from tests.integration.scene.blend_scene import Scene  # type: ignore[assignment]
+else:
+    raise ImportError("Environment not supported.")
+
+
+if importlib.util.find_spec("c4d") is not None:
+    from plugins.cinema4d.src.jb_types import AssetModel, AssetFile
+elif importlib.util.find_spec("bpy") is not None:
+    from plugins.blender.addons.jiko_bridge_blend.src.jb_types import (  # type: ignore[assignment]
+        AssetModel,
+        AssetFile,
+    )
+else:
+    raise ImportError("Environment not supported.")
 
 log = get_logger(__name__)
 
 
-class TestBlenderJikoBridge(unittest.TestCase):
-    """Integration tests for Jiko Bridge."""
+class BaseJikoBridgeTests(unittest.TestCase):
+    """Abstract base class with all shared Jiko Bridge test flows."""
 
     @property
     def suffix(self) -> str:
-        """Return a short unique suffix for asset names."""
+        """Unique suffix for asset names."""
         return uuid.uuid4().hex[:6]
+
+    def _make_scene(self) -> BaseScene:
+        """Return a configured scene helper instance."""
+        return Scene()
 
     def setUp(self) -> None:
         log.info("Setting up Jiko Bridge integration test.")
-        self.scene = BlenderSceneHelper()
+        self.scene = self._make_scene()
         self.scene.reset_scene()
-
         self.scene.ensure_loaded()
+
         self.asset_1 = AssetModel(
             database_name="test-local",
             pack_name="test",
@@ -65,17 +85,15 @@ class TestBlenderJikoBridge(unittest.TestCase):
     def tearDown(self) -> None:
         try:
             path = self.scene.save_document("test_flows_teardown")
-
             if not path:
                 log.error("Failed to save during tearDown.")
                 return
-
             log.info("Saved for diagnostics: %s", path)
         except RuntimeError as exc:
             log.error("Failed to save tearDown: %s", exc)
 
-    def export_flow(self, asset_model: AssetModel):
-        """Exports a new asset."""
+    def export_flow(self, asset_model: Any) -> Any:
+        """Export new asset."""
         api_module = self.scene.import_module("src.jb_api")
         self.assertIsNotNone(api_module)
 
@@ -94,72 +112,56 @@ class TestBlenderJikoBridge(unittest.TestCase):
 
         return asset_capture
 
-    def update_flow(self, container):
-        """Updates an existing asset."""
-
+    def update_flow(self, container: Any) -> None:
+        """Update existing asset."""
         self.scene.select_objects([container])
 
         exporter_module = self.scene.import_module("src.jb_asset_exporter")
         exporter = exporter_module.JbAssetExporter(self.scene.source)
         export_message = exporter.export_message()
-        self.assertIn("update", export_message.lower(), "Export message should mention update")
+        self.assertIn("update", export_message.lower())
 
         self.scene.call_command("export_asset")
 
-    def import_active_asset(
-        self,
-        asset_model: AssetModel,
-        count: int = 1,
-    ):
-        """Import active asset to the scene"""
+    def import_active_asset(self, asset_model: Any, count: int = 1):
+        """Import active asset"""
         self.scene.clear_selection()
 
         api_module = self.scene.import_module("src.jb_api")
 
-        def injected_active_asset(*_args, **_kwargs):
-            api = api_module.JbAPI()
-            return api.get_asset(asset_model)
+        def injected_active_asset(*_args: Any, **_kwargs: Any) -> Any:
+            return api_module.JbAPI().get_asset(asset_model)
 
         importer_module = self.scene.import_module("src.jb_asset_importer")
         importer = importer_module.JbAssetImporter(self.scene.source)
         import_message = importer.import_message()
-        self.assertIn(
-            "active asset",
-            import_message.lower(),
-            "Import message should mention active asset",
-        )
+        self.assertIn("active asset", import_message.lower())
 
         with patch.object(
             api_module.JbAPI,
             "get_active_asset",
             autospec=True,
             side_effect=injected_active_asset,
-        ) as get_active_asset_patch:
+        ) as patch_obj:
             for _ in range(count):
                 self.scene.call_command("import_asset")
 
-        return get_active_asset_patch
+        return patch_obj
 
-    def reimport_flow(self, container):
-        """Reimport asset container."""
+    def reimport_flow(self, container: Any) -> None:
+        """Reimport asset."""
         self.scene.select_objects([container])
         self.scene.call_command("import_asset")
 
-    def instancing(self, asset_model: AssetModel, count: int = 5):
-        """Create multiple instances of the active asset."""
-        get_active_asset_patch = self.import_active_asset(asset_model=asset_model, count=count)
-
+    def instancing(self, asset_model: Any, count: int = 5):
+        """Instance by importing the same asset multiple times."""
+        patch_obj = self.import_active_asset(asset_model=asset_model, count=count)
         instances = self.scene.get_instance_objects()
-        self.assertEqual(
-            len(instances),
-            count,
-            f"{count} instances should be created in the scene",
-        )
-        return instances, get_active_asset_patch
+        self.assertEqual(len(instances), count)
+        return instances, patch_obj
 
     def test_full_flow(self) -> None:
-        """Test the flows of Jiko Bridge."""
-        # Stage 1: Export new geometry asset
+        """Test the full flow of Jiko Bridge"""
         parent = self.scene.create_scene_object("ExportParent")
         self.scene.create_scene_object("ExportChild", parent=parent)
 
@@ -168,55 +170,31 @@ class TestBlenderJikoBridge(unittest.TestCase):
         assert mat is not None, "Material should be imported successfully"
 
         self.scene.apply_material_to_object(parent, mat)
-
         self.scene.select_objects([parent])
         asset_capture = self.export_flow(self.asset_1)
         self.assertIn("asset", asset_capture)
 
-        # Stage 2: Update existing asset with added geometry, using selected collection
         asset_container = self.scene.find_container_by_name(self.collection_name_1)
-        assert asset_container is not None, "Exported asset collection should be found in the scene"
+        assert asset_container is not None, "Exported asset container should be found in the scene"
 
         self.scene.create_scene_object("UpdateChild", parent=parent)
         expected_hierarchy = self.scene.get_hierarchy(asset_container)
 
         self.update_flow(asset_container)
-
-        # Stage 3: Reimport the updated collection asset
         self.reimport_flow(asset_container)
+        self.assertEqual(self.scene.get_hierarchy(asset_container), expected_hierarchy)
 
-        imported_hierarchy = self.scene.get_hierarchy(asset_container)
-        self.assertEqual(
-            imported_hierarchy,
-            expected_hierarchy,
-        )
+        instances, patch_obj = self.instancing(self.asset_1)
+        self.assertEqual(patch_obj.call_count, 5)
 
-        # Stage 4: Create instances by importing active asset repeatedly
-        instances, get_active_asset_patch = self.instancing(self.asset_1)
-        self.assertEqual(get_active_asset_patch.call_count, 5)
-
-        # Stage 5: Export the selected instances as a new asset
         self.scene.select_objects(instances)
         self.export_flow(self.asset_2)
 
-        # Stage 6: Import in empty scene
         self.scene.reset_scene()
-
-        self.assertIsNone(
-            self.scene.find_container_by_name(self.collection_name_1),
-            "Payload1 asset must not exist before payload2 import",
-        )
-
+        self.assertIsNone(self.scene.find_container_by_name(self.collection_name_1))
         self.import_active_asset(asset_model=self.asset_2)
-
-        self.assertIsNotNone(
-            self.scene.find_container_by_name(self.collection_name_2),
-            "Payload2 asset should be imported into the empty scene",
-        )
-        self.assertIsNotNone(
-            self.scene.find_container_by_name(self.collection_name_1),
-            "Linked payload1 asset should also be imported after payload2 import",
-        )
+        self.assertIsNotNone(self.scene.find_container_by_name(self.collection_name_2))
+        self.assertIsNotNone(self.scene.find_container_by_name(self.collection_name_1))
 
 
 if __name__ == "__main__":

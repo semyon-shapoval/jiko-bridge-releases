@@ -119,12 +119,11 @@ class JbSceneObjects(JbSceneABC):
         if isinstance(obj, bpy.types.Collection):
             return list(obj.objects) + list(obj.children)
         return []
-    
 
-    def get_depth(self, src: JbData) -> int:
+    def get_depth(self, obj) -> int:
         depth = 0
-        if isinstance(src, (bpy.types.Object)):
-            current = src.parent
+        if isinstance(obj, (bpy.types.Object)):
+            current = obj.parent
         else:
             return depth
 

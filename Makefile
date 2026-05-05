@@ -36,17 +36,17 @@ c4d:
 	make c4d-test
 
 c4d-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d tests/integration/cinema4d
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/cinema4d tests/integration
 
 c4d-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d tests/integration/cinema4d
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/cinema4d tests/integration
 
 c4d-test:
 	clear
 	@echo "Running C4D tests..."
 	set "JB_ENV=test" && \
 	set "g_additionalModulePath=$(C4D_PLUGIN_PATH)" && \
-	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/cinema4d/c4d_test_flows.py"
+	"$(C4D_PYTHON)" "$(CURDIR)/tests/integration/test_flows.py"
 
 blend:
 	make blend-lint
@@ -59,10 +59,10 @@ blend-run:
 	"$(BLENDER_PATH)" --addons $(ADDON_NAME)
 
 blend-lint:
-	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/$(ADDON_NAME) tests/integration/blender
+	$(PYTHON) -m pylint --rcfile=pyproject.toml plugins/blender/addons/$(ADDON_NAME) tests/integration
 
 blend-typecheck:
-	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/$(ADDON_NAME) tests/integration/blender
+	$(PYTHON) -m mypy --config-file pyproject.toml plugins/blender/addons/$(ADDON_NAME) tests/integration
 
 
 blend-test:
@@ -70,4 +70,4 @@ blend-test:
 	@echo "Running Blender tests..."
 	set "JB_ENV=test" && \
 	set "BLENDER_USER_SCRIPTS=$(ROOT_ADDONS_PATH)" && \
-	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/blender/blend_test_flows.py"
+	"$(BLENDER_PATH)" --addons $(ADDON_NAME) --python "$(CURDIR)/tests/integration/test_flows.py"

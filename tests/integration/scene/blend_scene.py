@@ -10,27 +10,26 @@ from typing import Optional
 import addon_utils
 import bpy
 
+from .base_scene import BaseScene
 
-class BlenderSceneHelper:
+
+class Scene(BaseScene):
     """Helper class for managing Blender scene state in integration tests."""
 
     ADDON_NAME = "jiko_bridge_blend"
 
     def __init__(self):
-        self.souce = bpy.context
+        self._source = bpy.context
 
     @property
     def source(self) -> bpy.types.Context:
-        """Return the current Blender context."""
-        return self.souce
+        return self._source
 
     def import_module(self, module_name: str):
-        """Import a module from the Jiko Bridge addon."""
         full_name = f"{self.ADDON_NAME}.{module_name}"
         return importlib.import_module(full_name)
 
     def call_command(self, operator: str):
-        """Call command"""
         jiko_ops = getattr(bpy.ops, "jiko_bridge", None)
         if jiko_ops is None:
             raise RuntimeError("jiko_bridge operator should be registered in bpy.ops")
@@ -40,14 +39,12 @@ class BlenderSceneHelper:
 
     @property
     def _view_layer(self) -> bpy.types.ViewLayer:
-        """Return the active view layer, or None if not available."""
-        view_layer = self.souce.view_layer
+        view_layer = self.source.view_layer
         if view_layer is None:
             raise RuntimeError("No active view layer found in the current Blender context.")
         return view_layer
 
     def _find_layer_collection(self, layer_collection, name):
-        """Recursively search layer_collection tree for a collection by name."""
         if layer_collection.collection.name == name:
             return layer_collection
         for child in layer_collection.children:
@@ -56,8 +53,7 @@ class BlenderSceneHelper:
                 return found
         return None
 
-    def update(self):
-        """Force Blender to update the scene and view layer."""
+    def _update(self):
         view_layer = bpy.context.view_layer
         if view_layer:
             view_layer.update()
@@ -65,7 +61,6 @@ class BlenderSceneHelper:
     def create_scene_object(
         self, name: str, parent: Optional[bpy.types.Object] = None
     ) -> bpy.types.Object:
-        """Create a new cube primitive in the scene with the given name and parent."""
         bpy.ops.object.select_all(action="DESELECT")
 
         existing_objects = set(bpy.data.objects)
@@ -90,46 +85,36 @@ class BlenderSceneHelper:
             obj.matrix_parent_inverse = parent.matrix_world.inverted()
 
         obj.select_set(True)
-        self.update()
+        self._update()
 
         return obj
 
     def find_material_by_name(self, name) -> Optional[bpy.types.Material]:
-        """Find a material in the current Blender file by name."""
         return bpy.data.materials.get(name)
 
     def find_container_by_name(self, name) -> Optional[bpy.types.Collection]:
-        """Find a collection in the current Blender file by name."""
         return bpy.data.collections.get(name)
 
     def clear_selection(self):
-        """Deselect all objects, reset the active layer collection, and clear Outliner selection."""
-        # Сначала сбрасываем через ops
         bpy.ops.object.select_all(action="DESELECT")
 
-        # Потом явно обнуляем активный объект
         self._view_layer.objects.active = None
-
-        # Сбрасываем active_layer_collection на корневую коллекцию
         self._view_layer.active_layer_collection = self._view_layer.layer_collection
 
-        self.update()
+        self._update()
 
     def ensure_loaded(self, addon_name: str | None = None) -> None:
-        """Enable a Blender addon by name and keep it loaded after reset."""
         addon_name = addon_name or self.ADDON_NAME
         enabled, _ = addon_utils.check(addon_name)
         if not enabled:
             addon_utils.enable(addon_name, default_set=True, persistent=True)
 
     def reset_scene(self, addon_name: str | None = None) -> None:
-        """Reset Blender to a clean empty file for a fresh import test."""
         bpy.ops.wm.read_factory_settings(use_empty=True)
         self.ensure_loaded(addon_name)
-        self.update()
+        self._update()
 
     def save_document(self, filename: str) -> str:
-        """Save the current Blender file into the integration test logs directory."""
         logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "logs"))
         os.makedirs(logs_dir, exist_ok=True)
         path = os.path.join(logs_dir, f"{filename}.blend")
@@ -137,7 +122,6 @@ class BlenderSceneHelper:
         return path
 
     def select_objects(self, objects: list[bpy.types.Object | bpy.types.Collection]):
-        """Select all objects in the given list."""
         self.clear_selection()
 
         for obj in objects:
@@ -151,19 +135,17 @@ class BlenderSceneHelper:
 
                 self._view_layer.active_layer_collection = layer_collection
 
-        self.update()
+        self._update()
 
-    def apply_material_to_object(self, obj: bpy.types.Object, mat: bpy.types.Material) -> bool:
-        """Apply the given material to the given object if it's a mesh."""
+    def apply_material_to_object(self, obj: bpy.types.Object, material: bpy.types.Material) -> bool:
         if isinstance(obj.data, bpy.types.Mesh):
-            obj.data.materials.append(mat)
+            obj.data.materials.append(material)
             return True
         return False
 
-    def get_hierarchy(self, collection: bpy.types.Collection):
-        """Return a parent map for all direct objects inside a collection."""
+    def get_hierarchy(self, container: bpy.types.Collection):
         hierarchy = {}
-        for obj in collection.objects:
+        for obj in container.objects:
             norm_name = obj.name.split(".", 1)[0]
             norm_parent = obj.parent.name.split(".", 1)[0] if obj.parent else None
             hierarchy[norm_name] = norm_parent
@@ -171,7 +153,6 @@ class BlenderSceneHelper:
         return hierarchy
 
     def get_instance_objects(self) -> list[bpy.types.Object]:
-        """Return all collection instance objects in the current Blender scene."""
         return [
             obj
             for obj in bpy.data.objects
