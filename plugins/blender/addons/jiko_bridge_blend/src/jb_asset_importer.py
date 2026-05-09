@@ -69,9 +69,7 @@ class JbAssetImporter(JbAssetImporterProtocol):
                         self.materials.set_material_name(
                             mat, f"{asset.pack_name}__{asset.asset_name}"
                         )
-            return list(assets)
-
-        if containers:
+        elif containers:
             for container in containers:
                 self.scene.clear_container(container)
                 asset_model = self.scene.get_asset_data_from_container(container)
@@ -80,15 +78,12 @@ class JbAssetImporter(JbAssetImporterProtocol):
                 asset = self.api.get_asset(asset_model)
                 if asset:
                     assets.append(asset)
-            return list(assets)
-
-        if not materials and not containers:
+        else:
             asset = self.api.get_active_asset()
             if asset:
                 assets.append(asset)
-            return list(assets)
 
-        return []
+        return list(assets)
 
     def _import_single(self, asset: AssetModel) -> None:
         for file in asset.files:

@@ -54,7 +54,7 @@ class JbSceneObjects(JbSceneABC):
             if isinstance(obj, c4d.BaseMaterial):
                 materials.append(obj)
                 continue
-            
+
             if not obj.IsInstanceOf(c4d.Opolygon):
                 continue
 
@@ -93,6 +93,7 @@ class JbSceneObjects(JbSceneABC):
             for tag in obj.GetTags():
                 try:
                     if tag.GetType() == c4d.Tprotection:
+                        tag[c4d.PROTECTION_ALLOW_DUPLICATION] = True
                         return
                 except (AttributeError, TypeError):
                     continue
@@ -100,6 +101,7 @@ class JbSceneObjects(JbSceneABC):
         try:
             protection_tag = c4d.BaseTag(c4d.Tprotection)
             if protection_tag is not None:
+                protection_tag[c4d.PROTECTION_ALLOW_DUPLICATION] = True
                 obj.InsertTag(protection_tag)
         except (AttributeError, TypeError):
             pass
